@@ -4,7 +4,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/check-env.js && prisma generate && prisma db push && next build",
-    "postbuild": "node scripts/setup-vercel.js",
     "start": "next start",
     "lint": "next lint",
     "setup-db": "prisma db push && node scripts/setup-vercel.js"
