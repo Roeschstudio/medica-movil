@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          doctor: {
+          doctorProfile: {
             select: {
               specialty: true,
               isVerified: true,
@@ -67,11 +67,11 @@ export async function GET(request: NextRequest) {
         role: user.role,
         phone: user.phone,
         createdAt: user.createdAt,
-        doctor: user.doctor ? {
-          specialty: user.doctor.specialty,
-          isVerified: user.doctor.isVerified,
-          city: user.doctor.city,
-          state: user.doctor.state
+        doctor: user.doctorProfile ? {
+          specialty: user.doctorProfile.specialty,
+          isVerified: user.doctorProfile.isVerified,
+          city: user.doctorProfile.city,
+          state: user.doctorProfile.state
         } : null
       })),
       pagination: {

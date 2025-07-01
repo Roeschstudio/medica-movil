@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 async function generateUsersReport() {
   const users = await prisma.user.findMany({
     include: {
-      doctor: {
+      doctorProfile: {
         select: {
           specialty: true,
           isVerified: true,
@@ -67,13 +67,13 @@ async function generateUsersReport() {
     role: user.role,
     phone: user.phone || '',
     createdAt: user.createdAt.toISOString(),
-    ...(user.doctor && {
-      specialty: user.doctor.specialty,
-      isVerified: user.doctor.isVerified,
-      location: `${user.doctor.city}, ${user.doctor.state}`,
-      priceInPerson: user.doctor.priceInPerson,
-      priceVirtual: user.doctor.priceVirtual,
-      priceHomeVisit: user.doctor.priceHomeVisit
+    ...(user.doctorProfile && {
+      specialty: user.doctorProfile.specialty,
+      isVerified: user.doctorProfile.isVerified,
+      location: `${user.doctorProfile.city}, ${user.doctorProfile.state}`,
+      priceInPerson: user.doctorProfile.priceInPerson,
+      priceVirtual: user.doctorProfile.priceVirtual,
+      priceHomeVisit: user.doctorProfile.priceHomeVisit
     })
   }));
 

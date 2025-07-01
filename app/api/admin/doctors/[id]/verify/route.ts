@@ -23,10 +23,10 @@ export async function PATCH(
     // Verificar que el usuario existe y es doctor
     const user = await prisma.user.findUnique({
       where: { id: doctorId },
-      include: { doctor: true }
+      include: { doctorProfile: true }
     });
 
-    if (!user || user.role !== 'DOCTOR' || !user.doctor) {
+    if (!user || user.role !== 'DOCTOR' || !user.doctorProfile) {
       return NextResponse.json(
         { error: 'Doctor no encontrado' },
         { status: 404 }
