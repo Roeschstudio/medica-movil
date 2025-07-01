@@ -329,6 +329,26 @@ POST /api/auth/register    - Registro de usuarios
 - **Emails**: SendGrid para notificaciones
 - **Monitoreo**: Sentry + Analytics
 
+### 🔧 **Configuración de Production (Vercel)**
+
+### Variables de Entorno para Vercel:
+
+```env
+# Base de datos PostgreSQL (Supabase - IPv4 Compatible)
+DATABASE_URL="postgresql://postgres.hswyhjpxrqnkigxeiezd:[PASSWORD]@aws-0-us-east-2.pooler.supabase.com:6543/postgres"
+
+# NextAuth
+NEXTAUTH_SECRET="ae7d287c2c11c4037f285da923bb367d847943d5e398b15c74c8840952874d33"
+NEXTAUTH_URL="https://medica-movil.vercel.app"
+
+# Stripe (configuración de prueba)
+STRIPE_PUBLISHABLE_KEY="pk_test_default"
+STRIPE_SECRET_KEY="sk_test_default"
+STRIPE_WEBHOOK_SECRET="whsec_default"
+```
+
+**IMPORTANTE:** Usa el Transaction Pooler (puerto 6543) para Vercel, no la conexión directa (puerto 5432).
+
 ---
 
 ## 📞 **Soporte y Mantenimiento**
@@ -374,7 +394,7 @@ POST /api/auth/register    - Registro de usuarios
 Para cualquier duda técnica o solicitud de cambios, contactar al equipo de desarrollo.
 
 **Estado del Proyecto**: ✅ **LISTO PARA PRODUCCIÓN**
-**Última Actualización**: Diciembre 2024
+**Última Actualización**: Julio 2024
 **Versión**: 1.0.0
 
 ---
