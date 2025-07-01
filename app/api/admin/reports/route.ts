@@ -97,7 +97,7 @@ async function generateAppointmentsReport() {
           email: true
         }
       },
-      doctorProfile: {
+      doctor: {
         select: {
           specialty: true,
           user: {
@@ -118,8 +118,8 @@ async function generateAppointmentsReport() {
     consultationType: appointment.type,
     patientName: appointment.patient.name,
     patientEmail: appointment.patient.email,
-    doctorName: appointment.doctorProfile.user.name,
-    doctorSpecialty: appointment.doctorProfile.specialty,
+    doctorName: appointment.doctor.user.name,
+    doctorSpecialty: appointment.doctor.specialty,
     notes: appointment.notes || '',
     createdAt: appointment.createdAt.toISOString()
   }));
@@ -141,7 +141,7 @@ async function generateFinancialReport() {
           name: true
         }
       },
-      doctorProfile: {
+      doctor: {
         select: {
           priceInPerson: true,
           priceVirtual: true,
@@ -160,19 +160,19 @@ async function generateFinancialReport() {
   const report = completedAppointments.map((appointment: any) => {
     let estimatedRevenue = 800; // Precio base por defecto
     
-    if (appointment.type === 'IN_PERSON' && appointment.doctorProfile.priceInPerson) {
-      estimatedRevenue = appointment.doctorProfile.priceInPerson;
-    } else if (appointment.type === 'VIRTUAL' && appointment.doctorProfile.priceVirtual) {
-      estimatedRevenue = appointment.doctorProfile.priceVirtual;
-    } else if (appointment.type === 'HOME_VISIT' && appointment.doctorProfile.priceHomeVisit) {
-      estimatedRevenue = appointment.doctorProfile.priceHomeVisit;
+    if (appointment.type === 'IN_PERSON' && appointment.doctor.priceInPerson) {
+      estimatedRevenue = appointment.doctor.priceInPerson;
+    } else if (appointment.type === 'VIRTUAL' && appointment.doctor.priceVirtual) {
+      estimatedRevenue = appointment.doctor.priceVirtual;
+    } else if (appointment.type === 'HOME_VISIT' && appointment.doctor.priceHomeVisit) {
+      estimatedRevenue = appointment.doctor.priceHomeVisit;
     }
 
     return {
       appointmentId: appointment.id,
       date: appointment.scheduledAt.toISOString(),
       patientName: appointment.patient.name,
-      doctorName: appointment.doctorProfile.user.name,
+      doctorName: appointment.doctor.user.name,
       consultationType: appointment.type,
       estimatedRevenue: estimatedRevenue,
       platformFee: Math.round(estimatedRevenue * 0.1), // 10% comisión

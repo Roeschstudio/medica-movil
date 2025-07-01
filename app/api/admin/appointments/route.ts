@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
           } 
         },
         { 
-          doctorProfile: { 
+          doctor: { 
             user: {
               name: { contains: search, mode: 'insensitive' }
             }
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
               email: true
             }
           },
-          doctorProfile: {
+          doctor: {
             select: {
               id: true,
               specialty: true,
@@ -96,9 +96,9 @@ export async function GET(request: NextRequest) {
           email: appointment.patient.email
         },
         doctor: {
-          id: appointment.doctorProfile.id,
-          name: appointment.doctorProfile.user.name,
-          specialty: appointment.doctorProfile.specialty
+          id: appointment.doctor.id,
+          name: appointment.doctor.user.name,
+          specialty: appointment.doctor.specialty
         }
       })),
       pagination: {
