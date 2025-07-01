@@ -91,6 +91,9 @@ export default function AdminDashboardClient() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
   
+  // Estado para controlar las tabs
+  const [activeTab, setActiveTab] = useState('overview');
+  
   // Filtros y paginación para usuarios
   const [userSearch, setUserSearch] = useState('');
   const [userRole, setUserRole] = useState('all');
@@ -630,7 +633,7 @@ export default function AdminDashboardClient() {
             </div>
 
             {/* Tabs de gestión */}
-            <Tabs defaultValue="overview" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="overview">
                   <Activity className="h-4 w-4 mr-2" />
@@ -694,9 +697,10 @@ export default function AdminDashboardClient() {
                         className="w-full justify-start" 
                         variant="outline"
                         onClick={() => {
-                          // Cambiar a tab de usuarios
-                          const usersTab = document.querySelector('[value="users"]') as HTMLElement;
-                          usersTab?.click();
+                          setActiveTab('users');
+                          setUserRole('all');
+                          setUserSearch('');
+                          setUserPage(1);
                         }}
                       >
                         <Users className="h-4 w-4 mr-2" />
@@ -706,9 +710,10 @@ export default function AdminDashboardClient() {
                         className="w-full justify-start" 
                         variant="outline"
                         onClick={() => {
+                          setActiveTab('users');
                           setUserRole('DOCTOR');
-                          const usersTab = document.querySelector('[value="users"]') as HTMLElement;
-                          usersTab?.click();
+                          setUserSearch('');
+                          setUserPage(1);
                         }}
                       >
                         <Stethoscope className="h-4 w-4 mr-2" />
@@ -718,9 +723,10 @@ export default function AdminDashboardClient() {
                         className="w-full justify-start" 
                         variant="outline"
                         onClick={() => {
+                          setActiveTab('appointments');
                           setAppointmentStatus('PENDING');
-                          const appointmentsTab = document.querySelector('[value="appointments"]') as HTMLElement;
-                          appointmentsTab?.click();
+                          setAppointmentSearch('');
+                          setAppointmentPage(1);
                         }}
                       >
                         <Calendar className="h-4 w-4 mr-2" />
@@ -730,8 +736,7 @@ export default function AdminDashboardClient() {
                         className="w-full justify-start" 
                         variant="outline"
                         onClick={() => {
-                          const reportsTab = document.querySelector('[value="reports"]') as HTMLElement;
-                          reportsTab?.click();
+                          setActiveTab('reports');
                         }}
                       >
                         <FileText className="h-4 w-4 mr-2" />
