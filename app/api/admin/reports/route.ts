@@ -226,7 +226,7 @@ async function generateActivityReport() {
       where: {
         OR: [
           { 
-            patientAppointments: {
+            appointmentsAsPatient: {
               some: { createdAt: { gte: thirtyDaysAgo } }
             }
           },
