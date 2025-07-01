@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Construir filtros
+    // Construir filtros de forma más robusta
     const where: any = {};
     
     if (role && role !== 'all') {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Obtener usuarios con paginación
+    // Obtener usuarios con paginación de forma más robusta
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -56,8 +56,14 @@ export async function GET(request: NextRequest) {
             }
           }
         }
+      }).catch((error: any) => {
+        console.error('Error fetching users:', error);
+        return [];
       }),
-      prisma.user.count({ where })
+      prisma.user.count({ where }).catch((error: any) => {
+        console.error('Error counting users:', error);
+        return 0;
+      })
     ]);
 
     const totalPages = Math.ceil(total / limit);
@@ -65,16 +71,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       users: users.map((user: any) => ({
         id: user.id,
-        name: user.name,
+        name: user.name || 'Sin nombre',
         email: user.email,
         role: user.role,
-        phone: user.phone,
+        phone: user.phone || '',
         createdAt: user.createdAt,
         doctor: user.doctorProfile ? {
-          specialty: user.doctorProfile.specialty,
-          isVerified: user.doctorProfile.isVerified,
-          city: user.doctorProfile.city,
-          state: user.doctorProfile.state
+          specialty: user.doctorProfile.specialty || 'Sin especialidad',
+          isVerified: user.doctorProfile.isVerified || false,
+          city: user.doctorProfile.city || 'Sin ciudad',
+          state: user.doctorProfile.state || 'Sin estado'
         } : null
       })),
       pagination: {
@@ -88,7 +94,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: 'Error interno del servidor',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

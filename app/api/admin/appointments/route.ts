@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Construir filtros
+    // Construir filtros de forma más robusta
     const where: any = {};
     
     if (status && status !== 'all') {
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Obtener citas con paginación
+    // Obtener citas con paginación de forma más robusta
     const [appointments, total] = await Promise.all([
       prisma.appointment.findMany({
         where,
@@ -76,8 +76,14 @@ export async function GET(request: NextRequest) {
             }
           }
         }
+      }).catch((error: any) => {
+        console.error('Error fetching appointments:', error);
+        return [];
       }),
-      prisma.appointment.count({ where })
+      prisma.appointment.count({ where }).catch((error: any) => {
+        console.error('Error counting appointments:', error);
+        return 0;
+      })
     ]);
 
     const totalPages = Math.ceil(total / limit);
@@ -88,17 +94,17 @@ export async function GET(request: NextRequest) {
         scheduledAt: appointment.scheduledAt,
         status: appointment.status,
         consultationType: appointment.type,
-        notes: appointment.notes,
+        notes: appointment.notes || '',
         createdAt: appointment.createdAt,
         patient: {
-          id: appointment.patient.id,
-          name: appointment.patient.name,
-          email: appointment.patient.email
+          id: appointment.patient?.id || '',
+          name: appointment.patient?.name || 'Sin nombre',
+          email: appointment.patient?.email || 'Sin email'
         },
         doctor: {
-          id: appointment.doctor.id,
-          name: appointment.doctor.user.name,
-          specialty: appointment.doctor.specialty
+          id: appointment.doctor?.id || '',
+          name: appointment.doctor?.user?.name || 'Sin nombre',
+          specialty: appointment.doctor?.specialty || 'Sin especialidad'
         }
       })),
       pagination: {
@@ -112,7 +118,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching appointments:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { 
+        error: 'Error interno del servidor',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
