@@ -6,6 +6,14 @@ export function validateMexicanPhone(phone: string): {
   formatted: string;
   error?: string;
 } {
+  // Si está vacío, es válido (opcional)
+  if (!phone || phone.trim() === '') {
+    return {
+      isValid: true,
+      formatted: ''
+    };
+  }
+  
   // Remover espacios, guiones y caracteres especiales, pero mantener números
   let cleaned = phone.replace(/\D/g, '');
   
@@ -20,11 +28,19 @@ export function validateMexicanPhone(phone: string): {
   }
   
   // Verificar si tiene exactamente 10 dígitos después de limpiar
-  if (cleaned.length !== 10) {
+  if (cleaned.length < 10) {
     return {
       isValid: false,
       formatted: phone,
-      error: `El número debe tener 10 dígitos (encontrados: ${cleaned.length})`
+      error: `Faltan dígitos (tienes ${cleaned.length}, necesitas 10)`
+    };
+  }
+  
+  if (cleaned.length > 10) {
+    return {
+      isValid: false,
+      formatted: phone,
+      error: `Demasiados dígitos (tienes ${cleaned.length}, necesitas 10)`
     };
   }
   

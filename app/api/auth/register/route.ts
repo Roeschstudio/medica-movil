@@ -1,8 +1,6 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
-import { UserRole } from '@prisma/client';
 import { validateMexicanPhone } from '@/lib/mexican-utils';
 
 export const dynamic = 'force-dynamic';
@@ -13,9 +11,9 @@ export async function POST(request: NextRequest) {
     const { name, email, phone, password, userType } = body;
 
     // Validar datos requeridos
-    if (!name || !email || !phone || !password || !userType) {
+    if (!name || !email || !password || !userType) {
       return NextResponse.json(
-        { error: 'Todos los campos son requeridos' },
+        { error: 'Nombre, email, contraseña y tipo de usuario son requeridos' },
         { status: 400 }
       );
     }
@@ -37,13 +35,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar teléfono mexicano
-    const phoneValidation = validateMexicanPhone(phone);
-    if (!phoneValidation.isValid) {
-      return NextResponse.json(
-        { error: phoneValidation.error || 'Número de teléfono inválido' },
-        { status: 400 }
-      );
+    // Validar teléfono mexicano (OPCIONAL)
+    let formattedPhone = null;
+    if (phone && phone.trim()) {
+      const phoneValidation = validateMexicanPhone(phone);
+      if (!phoneValidation.isValid) {
+        return NextResponse.json(
+          { error: phoneValidation.error || 'Número de teléfono inválido' },
+          { status: 400 }
+        );
+      }
+      formattedPhone = phoneValidation.formatted;
     }
 
     // Validar contraseña
@@ -66,34 +68,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar si el teléfono ya existe
-    const existingUserByPhone = await prisma.user.findUnique({
-      where: { phone: phoneValidation.formatted }
-    });
+    // Verificar si el teléfono ya existe (solo si se proporcionó)
+    if (formattedPhone) {
+      const existingUserByPhone = await prisma.user.findUnique({
+        where: { phone: formattedPhone }
+      });
 
-    if (existingUserByPhone) {
-      return NextResponse.json(
-        { error: 'Este número de teléfono ya está registrado' },
-        { status: 409 }
-      );
+      if (existingUserByPhone) {
+        return NextResponse.json(
+          { error: 'Este número de teléfono ya está registrado' },
+          { status: 409 }
+        );
+      }
     }
 
-    // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hash de la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Determinar el rol del usuario
-    const role = userType === 'doctor' ? UserRole.DOCTOR : UserRole.PATIENT;
+    // Determinar el rol basado en el tipo de usuario
+    const role = userType === 'doctor' ? 'DOCTOR' : 'PATIENT';
 
     // Crear el usuario
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
         email: email.toLowerCase().trim(),
-        phone: phoneValidation.formatted,
+        phone: formattedPhone,
         password: hashedPassword,
         role: role,
-        emailVerified: new Date(), // Auto-verificar por ahora
-        phoneVerified: true
+        emailVerified: new Date(), // Auto-verificar para desarrollo
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        createdAt: true,
       }
     });
 
@@ -124,28 +135,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Remover la contraseña de la respuesta
-    const { password: _, ...userWithoutPassword } = user;
-
     return NextResponse.json({
-      success: true,
-      message: 'Cuenta creada exitosamente',
-      user: userWithoutPassword
-    });
+      message: 'Usuario registrado exitosamente',
+      user
+    }, { status: 201 });
 
   } catch (error) {
     console.error('Error en registro:', error);
-    
-    // Manejar errores específicos de Prisma
-    if (error instanceof Error) {
-      if (error.message.includes('Unique constraint')) {
-        return NextResponse.json(
-          { error: 'El email o teléfono ya están registrados' },
-          { status: 409 }
-        );
-      }
-    }
-
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -72,10 +71,8 @@ export default function RegisterPage() {
       newErrors.email = 'Por favor ingresa un correo electrónico válido';
     }
 
-    // Validar teléfono mexicano
-    if (!formData.phone) {
-      newErrors.phone = 'El teléfono es requerido';
-    } else {
+    // Validar teléfono mexicano (OPCIONAL)
+    if (formData.phone && formData.phone.trim()) {
       const phoneValidation = validateMexicanPhone(formData.phone);
       if (!phoneValidation.isValid) {
         newErrors.phone = phoneValidation.error || 'Teléfono inválido';
@@ -267,7 +264,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono (México)</Label>
+                  <Label htmlFor="phone">Teléfono (Opcional)</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -275,9 +272,8 @@ export default function RegisterPage() {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="5512345678"
+                      placeholder="5512345678 (opcional)"
                       className="pl-10"
-                      required
                       autoComplete="tel"
                     />
                   </div>
@@ -285,7 +281,7 @@ export default function RegisterPage() {
                     <p className="text-sm text-destructive">{errors.phone}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Formato: 10 dígitos sin espacios ni guiones
+                    Opcional: 10 dígitos sin espacios. Ejemplo: 5512345678
                   </p>
                 </div>
 
