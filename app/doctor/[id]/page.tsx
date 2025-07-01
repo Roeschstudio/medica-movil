@@ -1,8 +1,10 @@
-
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authConfig } from '@/lib/auth-config';
 import { DoctorProfileClient } from './doctor-profile-client';
+
+// Forzar renderizado dinámico
+export const dynamic = 'force-dynamic';
 
 async function getDoctorProfile(id: string) {
   try {

@@ -1,275 +1,170 @@
-// Medica Movil - Esquema de Base de Datos
-// Plataforma de citas médicas para el mercado mexicano
-
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "sqlite"
-    url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// Enums
-enum UserRole {
-  PATIENT
-  DOCTOR
-  ADMIN
-}
-
-enum ConsultationType {
-  IN_PERSON      // Presencial
-  VIRTUAL        // Virtual/Telemedicina
-  HOME_VISIT     // Visita domiciliaria
-}
-
-enum AppointmentStatus {
-  PENDING        // Pendiente
-  CONFIRMED      // Confirmada
-  COMPLETED      // Completada
-  CANCELLED      // Cancelada
-  NO_SHOW        // No se presentó
-}
-
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-  PARTIALLY_REFUNDED
-}
-
-enum PaymentMethod {
-  CARD           // Tarjeta
-  OXXO           // OXXO
-  SPEI           // Transferencia bancaria
-}
-
-enum NotificationType {
-  EMAIL
-  SMS
-  WHATSAPP
-}
-
-// Modelo principal de usuarios
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String?
-  name          String
-  phone         String?   @unique
-  role          UserRole  @default(PATIENT)
-  emailVerified DateTime?
-  phoneVerified Boolean   @default(false)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relaciones para NextAuth
-  accounts     Account[]
-  sessions     Session[]
-
-  // Relaciones específicas por rol
-  patientProfile Patient?
-  doctorProfile  Doctor?
-
-  // Relaciones de actividad
-  appointmentsAsPatient Appointment[] @relation("PatientAppointments")
-  reviews              Review[]
-  payments             Payment[]
-  notifications        Notification[]
+  id                    String         @id @default(cuid())
+  email                 String         @unique
+  password              String?
+  name                  String
+  phone                 String?        @unique
+  role                  UserRole       @default(PATIENT)
+  emailVerified         DateTime?
+  phoneVerified         Boolean        @default(false)
+  isActive              Boolean        @default(true)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  accounts              Account[]
+  appointmentsAsPatient Appointment[]  @relation("PatientAppointments")
+  doctorProfile         Doctor?
+  notifications         Notification[]
+  patientProfile        Patient?
+  payments              Payment[]
+  reviews               Review[]
+  sessions              Session[]
 
   @@map("users")
 }
 
-// Perfil extendido para pacientes
 model Patient {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  dateOfBirth DateTime?
-  gender      String?
-  address     String?
-  city        String?
-  state       String?
-  zipCode     String?
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  dateOfBirth      DateTime?
+  gender           String?
+  address          String?
+  city             String?
+  state            String?
+  zipCode          String?
   emergencyContact String?
   emergencyPhone   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("patients")
 }
 
-// Perfil extendido para doctores
 model Doctor {
-  id                  String              @id @default(cuid())
-  userId              String              @unique
-  profileImage        String?
-  specialty           String              // Especialidad médica
-  licenseNumber       String?             // Cédula profesional
-  bio                 String?
-  
-  // Ubicación
-  address             String?
-  city                String
-  state               String
-  zipCode             String?
-  
-  // Configuración de consultas
-  acceptsInPerson     Boolean             @default(true)
-  acceptsVirtual      Boolean             @default(false)
-  acceptsHomeVisits   Boolean             @default(false)
-  
-  // Precios (en centavos MXN)
-  priceInPerson       Int?                // Precio consulta presencial
-  priceVirtual        Int?                // Precio consulta virtual
-  priceHomeVisit      Int?                // Precio visita domiciliaria
-  
-  // Configuración especial
-  firstConsultationFree Boolean           @default(false)
-  videoCallLink       String?             // Link para consultas virtuales
-  
-  // Horarios de trabajo (JSON)
-  workingHours        Json?               // {"monday": [{"from": "09:00", "to": "13:00"}]}
-  
-  // Duraciones por tipo de consulta (en minutos)
-  durationInPerson    Int                 @default(30)
-  durationVirtual     Int                 @default(30)
-  durationHomeVisit   Int                 @default(60)
-  
-  // Estadísticas
-  averageRating       Float               @default(0)
-  totalReviews        Int                 @default(0)
-  totalAppointments   Int                 @default(0)
-  
-  // Estado
-  isVerified          Boolean             @default(false)
-  isAvailable         Boolean             @default(true)
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  id                    String             @id @default(cuid())
+  userId                String             @unique
+  profileImage          String?
+  specialty             String
+  licenseNumber         String?
+  bio                   String?
+  address               String?
+  city                  String
+  state                 String
+  zipCode               String?
+  acceptsInPerson       Boolean            @default(true)
+  acceptsVirtual        Boolean            @default(false)
+  acceptsHomeVisits     Boolean            @default(false)
+  priceInPerson         Int?
+  priceVirtual          Int?
+  priceHomeVisit        Int?
+  firstConsultationFree Boolean            @default(false)
+  videoCallLink         String?
+  workingHours          Json?
+  durationInPerson      Int                @default(30)
+  durationVirtual       Int                @default(30)
+  durationHomeVisit     Int                @default(60)
+  averageRating         Float              @default(0)
+  totalReviews          Int                @default(0)
+  totalAppointments     Int                @default(0)
+  isVerified            Boolean            @default(false)
+  isAvailable           Boolean            @default(true)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  appointments          Appointment[]
+  blockedDays           DoctorBlockedDay[]
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews               Review[]
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Relaciones
-  appointments        Appointment[]
-  reviews            Review[]
-  blockedDays        DoctorBlockedDay[]
-  
   @@map("doctors")
 }
 
-// Días bloqueados por el doctor (vacaciones, etc.)
 model DoctorBlockedDay {
   id        String   @id @default(cuid())
   doctorId  String
   date      DateTime
   reason    String?
   createdAt DateTime @default(now())
-
-  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@unique([doctorId, date])
   @@map("doctor_blocked_days")
 }
 
-// Sistema de citas
 model Appointment {
-  id                String            @id @default(cuid())
-  
-  // Participantes
-  patientId         String
-  doctorId          String
-  
-  // Detalles de la cita
-  type              ConsultationType
-  scheduledAt       DateTime
-  duration          Int               // Duración en minutos
-  status            AppointmentStatus @default(PENDING)
-  
-  // Precios y pagos
-  price             Int               // Precio en centavos MXN
-  paymentId         String?           @unique
-  
-  // Información adicional
-  notes             String?
-  patientNotes      String?           // Notas del paciente
-  doctorNotes       String?           // Notas del doctor
-  
-  // Datos de contacto para la cita
-  patientPhone      String
-  patientEmail      String
-  
-  // Metadatos
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  cancelledAt       DateTime?
+  id                 String            @id @default(cuid())
+  patientId          String
+  doctorId           String
+  type               ConsultationType
+  scheduledAt        DateTime
+  duration           Int
+  status             AppointmentStatus @default(PENDING)
+  price              Int
+  paymentId          String?           @unique
+  notes              String?
+  patientNotes       String?
+  doctorNotes        String?
+  patientPhone       String
+  patientEmail       String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  cancelledAt        DateTime?
   cancellationReason String?
-
-  // Relaciones
-  patient User @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
-  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  payment Payment? @relation(fields: [paymentId], references: [id])
-  review  Review?
+  doctor             Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient            User              @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  payment            Payment?          @relation(fields: [paymentId], references: [id])
+  review             Review?
 
   @@map("appointments")
 }
 
-// Sistema de reseñas y calificaciones
 model Review {
-  id            String   @id @default(cuid())
-  appointmentId String   @unique
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
   patientId     String
   doctorId      String
-  rating        Int      // 1-5 estrellas
+  rating        Int
   comment       String?
-  isVisible     Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relaciones
-  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  patient     User        @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  isVisible     Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  doctor        Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient       User        @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@map("reviews")
 }
 
-// Sistema de pagos
 model Payment {
-  id                String        @id @default(cuid())
-  userId            String
-  appointmentId     String?       @unique
-  
-  // Detalles del pago
-  amount            Int           // Cantidad en centavos MXN
-  currency          String        @default("MXN")
-  method            PaymentMethod
-  status            PaymentStatus @default(PENDING)
-  
-  // Integración con Stripe
-  stripePaymentId   String?       @unique
-  stripeSessionId   String?       @unique
-  
-  // Reembolsos
-  refundAmount      Int?          // Cantidad reembolsada en centavos
-  refundReason      String?
-  refundedAt        DateTime?
-  
-  // Metadatos
-  metadata          Json?         // Información adicional
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  // Relaciones
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  appointment Appointment?
+  id              String        @id @default(cuid())
+  userId          String
+  appointmentId   String?       @unique
+  amount          Int
+  currency        String        @default("MXN")
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  stripePaymentId String?       @unique
+  stripeSessionId String?       @unique
+  refundAmount    Int?
+  refundReason    String?
+  refundedAt      DateTime?
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  appointment     Appointment?
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
 
-// Sistema de notificaciones
 model Notification {
   id        String           @id @default(cuid())
   userId    String
@@ -279,58 +174,47 @@ model Notification {
   isRead    Boolean          @default(false)
   sentAt    DateTime?
   createdAt DateTime         @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }
 
-// Tablas de referencia para datos mexicanos
-
-// Estados de México
 model MexicanState {
-  id    String @id @default(cuid())
-  name  String @unique
-  code  String @unique // Código de 2 letras
-  
+  id     String        @id @default(cuid())
+  name   String        @unique
+  code   String        @unique
   cities MexicanCity[]
-  
+
   @@map("mexican_states")
 }
 
-// Ciudades/Municipios de México
 model MexicanCity {
-  id      String @id @default(cuid())
+  id      String       @id @default(cuid())
   name    String
   stateId String
-  
-  state MexicanState @relation(fields: [stateId], references: [id])
-  
+  state   MexicanState @relation(fields: [stateId], references: [id])
+
   @@unique([name, stateId])
   @@map("mexican_cities")
 }
 
-// Especialidades médicas
 model MedicalSpecialty {
   id   String @id @default(cuid())
   name String @unique
-  
+
   @@map("medical_specialties")
 }
 
-// Días festivos mexicanos
 model MexicanHoliday {
   id          String   @id @default(cuid())
   name        String
-  date        DateTime
+  date        DateTime @unique
   isNational  Boolean  @default(true)
   description String?
-  
-  @@unique([date])
+
   @@map("mexican_holidays")
 }
 
-// Modelos para NextAuth
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -344,8 +228,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -356,9 +239,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("sessions")
 }
 
@@ -369,4 +251,44 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum ConsultationType {
+  IN_PERSON
+  VIRTUAL
+  HOME_VISIT
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  OXXO
+  SPEI
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  WHATSAPP
 }

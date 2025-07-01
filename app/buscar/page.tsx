@@ -1,17 +1,13 @@
-
 import SearchPageClient from './search-page-client';
 
+// Forzar renderizado dinámico
+export const dynamic = 'force-dynamic';
+
 async function getSpecialties() {
-  // Durante el build, retornamos datos vacíos
-  if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_URL?.startsWith('http')) {
-    return [];
-  }
-  
   try {
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
     const response = await fetch(`${baseUrl}/api/specialties`, {
-      cache: 'no-store',
-      next: { revalidate: 0 }
+      cache: 'no-store'
     });
     
     if (!response.ok) {
@@ -26,16 +22,10 @@ async function getSpecialties() {
 }
 
 async function getStates() {
-  // Durante el build, retornamos datos vacíos
-  if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_URL?.startsWith('http')) {
-    return [];
-  }
-  
   try {
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
     const response = await fetch(`${baseUrl}/api/states`, {
-      cache: 'no-store',
-      next: { revalidate: 0 }
+      cache: 'no-store'
     });
     
     if (!response.ok) {
