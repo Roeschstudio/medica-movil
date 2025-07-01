@@ -1,0 +1,202 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Importar fuente Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* Tema claro con colores mexicanos */
+    --background: 0 0% 100%;
+    --foreground: 210 11% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 11% 15%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 11% 15%;
+ 
+    /* Color primario: Verde azulado profesional */
+    --primary: 180 100% 24%;  /* #007A7A */
+    --primary-foreground: 0 0% 100%;
+ 
+    /* Color secundario: Coral suave para CTAs */
+    --secondary: 15 93% 67%;   /* #FF7A59 */
+    --secondary-foreground: 0 0% 100%;
+ 
+    --muted: 210 40% 98%;      /* #F8F9FA */
+    --muted-foreground: 215 16% 47%;
+ 
+    --accent: 210 40% 98%;
+    --accent-foreground: 210 11% 15%;
+ 
+    /* Estados de éxito y error */
+    --success: 142 76% 36%;    /* #16a34a - green-600 */
+    --success-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;  /* #DC3545 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 180 100% 24%;
+ 
+    --radius: 0.5rem;
+  }
+ 
+  .dark {
+    --background: 210 11% 15%;
+    --foreground: 0 0% 100%;
+ 
+    --card: 210 11% 18%;
+    --card-foreground: 0 0% 100%;
+ 
+    --popover: 210 11% 18%;
+    --popover-foreground: 0 0% 100%;
+ 
+    --primary: 180 100% 35%;
+    --primary-foreground: 210 11% 15%;
+ 
+    --secondary: 15 93% 60%;
+    --secondary-foreground: 0 0% 100%;
+ 
+    --muted: 210 11% 22%;
+    --muted-foreground: 215 16% 65%;
+ 
+    --accent: 210 11% 22%;
+    --accent-foreground: 0 0% 100%;
+ 
+    --success: 142 76% 46%;    /* green-500 para dark mode */
+    --success-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 0 0% 100%;
+ 
+    --border: 210 11% 22%;
+    --input: 210 11% 22%;
+    --ring: 180 100% 35%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  /* Tipografía mexicana profesional */
+  h1 {
+    @apply text-4xl font-bold text-foreground;
+  }
+  
+  h2 {
+    @apply text-3xl font-bold text-foreground;
+  }
+  
+  h3 {
+    @apply text-2xl font-semibold text-foreground;
+  }
+  
+  h4 {
+    @apply text-xl font-semibold text-foreground;
+  }
+  
+  p {
+    @apply text-base text-foreground;
+  }
+  
+  /* Estilos para elementos específicos de Medica Movil */
+  .medical-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+  }
+  
+  .medical-card {
+    @apply bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+  
+  .mexican-shadow {
+    box-shadow: 0 4px 6px -1px rgba(0, 122, 122, 0.1), 0 2px 4px -1px rgba(0, 122, 122, 0.06);
+  }
+  
+  /* Animaciones suaves para números que cuentan */
+  .count-up {
+    transition: all 0.3s ease-in-out;
+  }
+  
+  /* Efectos de paralaje */
+  .parallax-scroll {
+    transform: translateY(var(--scroll-offset, 0));
+  }
+}
+
+@layer components {
+  /* Botones mexicanos */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2 rounded-md font-medium transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 px-6 py-2 rounded-md font-medium transition-colors duration-200;
+  }
+  
+  .btn-outline {
+    @apply border border-primary text-primary hover:bg-primary hover:text-primary-foreground px-6 py-2 rounded-md font-medium transition-colors duration-200;
+  }
+  
+  /* Navegación sticky */
+  .sticky-nav {
+    @apply sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border;
+  }
+  
+  /* Tarjetas de doctor */
+  .doctor-card {
+    @apply medical-card p-6 hover:scale-[1.02] transition-transform duration-200;
+  }
+  
+  /* Formularios mexicanos */
+  .form-input {
+    @apply w-full px-4 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring;
+  }
+  
+  /* Badges de tipo de consulta */
+  .consultation-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-in-person {
+    @apply consultation-badge bg-primary/10 text-primary;
+  }
+  
+  .badge-virtual {
+    @apply consultation-badge bg-secondary/10 text-secondary;
+  }
+  
+  .badge-home-visit {
+    @apply consultation-badge bg-success/10 text-success;
+  }
+}
+
+/* Utilidades para formato mexicano */
+@layer utilities {
+  .text-mxn {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .max-width-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Estados mexicanos específicos */
+  .hover-lift {
+    @apply hover:-translate-y-1 transition-transform duration-200;
+  }
+  
+  .focus-ring-mexican {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+}
