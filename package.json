@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "node scripts/check-env.js && prisma generate && prisma db push && next build",
     "postbuild": "node scripts/setup-vercel.js",
     "start": "next start",
     "lint": "next lint",
