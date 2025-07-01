@@ -62,8 +62,12 @@ export async function GET(request: NextRequest) {
           doctor: {
             select: {
               id: true,
-              name: true,
-              specialty: true
+              specialty: true,
+              user: {
+                select: {
+                  name: true
+                }
+              }
             }
           }
         }
@@ -78,7 +82,7 @@ export async function GET(request: NextRequest) {
         id: appointment.id,
         scheduledAt: appointment.scheduledAt,
         status: appointment.status,
-        consultationType: appointment.consultationType,
+        consultationType: appointment.type,
         notes: appointment.notes,
         createdAt: appointment.createdAt,
         patient: {
@@ -88,7 +92,7 @@ export async function GET(request: NextRequest) {
         },
         doctor: {
           id: appointment.doctor.id,
-          name: appointment.doctor.name,
+          name: appointment.doctor.user.name,
           specialty: appointment.doctor.specialty
         }
       })),

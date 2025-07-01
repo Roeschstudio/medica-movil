@@ -96,8 +96,12 @@ async function generateAppointmentsReport() {
       },
       doctor: {
         select: {
-          name: true,
-          specialty: true
+          specialty: true,
+          user: {
+            select: {
+              name: true
+            }
+          }
         }
       }
     },
@@ -108,10 +112,10 @@ async function generateAppointmentsReport() {
     id: appointment.id,
     scheduledAt: appointment.scheduledAt.toISOString(),
     status: appointment.status,
-    consultationType: appointment.consultationType,
+    consultationType: appointment.type,
     patientName: appointment.patient.name,
     patientEmail: appointment.patient.email,
-    doctorName: appointment.doctor.name,
+    doctorName: appointment.doctor.user.name,
     doctorSpecialty: appointment.doctor.specialty,
     notes: appointment.notes || '',
     createdAt: appointment.createdAt.toISOString()
@@ -136,10 +140,14 @@ async function generateFinancialReport() {
       },
       doctor: {
         select: {
-          name: true,
           priceInPerson: true,
           priceVirtual: true,
-          priceHomeVisit: true
+          priceHomeVisit: true,
+          user: {
+            select: {
+              name: true
+            }
+          }
         }
       }
     },
@@ -149,11 +157,11 @@ async function generateFinancialReport() {
   const report = completedAppointments.map((appointment: any) => {
     let estimatedRevenue = 800; // Precio base por defecto
     
-    if (appointment.consultationType === 'IN_PERSON' && appointment.doctor.priceInPerson) {
+    if (appointment.type === 'IN_PERSON' && appointment.doctor.priceInPerson) {
       estimatedRevenue = appointment.doctor.priceInPerson;
-    } else if (appointment.consultationType === 'VIRTUAL' && appointment.doctor.priceVirtual) {
+    } else if (appointment.type === 'VIRTUAL' && appointment.doctor.priceVirtual) {
       estimatedRevenue = appointment.doctor.priceVirtual;
-    } else if (appointment.consultationType === 'HOME_VISIT' && appointment.doctor.priceHomeVisit) {
+    } else if (appointment.type === 'HOME_VISIT' && appointment.doctor.priceHomeVisit) {
       estimatedRevenue = appointment.doctor.priceHomeVisit;
     }
 
@@ -161,8 +169,8 @@ async function generateFinancialReport() {
       appointmentId: appointment.id,
       date: appointment.scheduledAt.toISOString(),
       patientName: appointment.patient.name,
-      doctorName: appointment.doctor.name,
-      consultationType: appointment.consultationType,
+      doctorName: appointment.doctor.user.name,
+      consultationType: appointment.type,
       estimatedRevenue: estimatedRevenue,
       platformFee: Math.round(estimatedRevenue * 0.1), // 10% comisión
       createdAt: appointment.createdAt.toISOString()
@@ -223,8 +231,10 @@ async function generateActivityReport() {
             }
           },
           {
-            doctorAppointments: {
-              some: { createdAt: { gte: thirtyDaysAgo } }
+            doctorProfile: {
+              appointments: {
+                some: { createdAt: { gte: thirtyDaysAgo } }
+              }
             }
           }
         ]
