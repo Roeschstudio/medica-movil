@@ -1,4 +1,3 @@
-
 // Utilidades específicas para el mercado mexicano
 
 // Validación de teléfono mexicano (10 dígitos)
@@ -7,19 +6,29 @@ export function validateMexicanPhone(phone: string): {
   formatted: string;
   error?: string;
 } {
-  // Remover espacios, guiones y caracteres especiales
-  const cleaned = phone.replace(/\D/g, '');
+  // Remover espacios, guiones y caracteres especiales, pero mantener números
+  let cleaned = phone.replace(/\D/g, '');
   
-  // Verificar si tiene exactamente 10 dígitos
+  // Si empieza con 52 (código de México), remover el código de país
+  if (cleaned.startsWith('52') && cleaned.length === 12) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  // Si empieza con 1 después del 52 (algunos formatos), removerlo
+  if (cleaned.startsWith('1') && cleaned.length === 11) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  // Verificar si tiene exactamente 10 dígitos después de limpiar
   if (cleaned.length !== 10) {
     return {
       isValid: false,
       formatted: phone,
-      error: 'El número debe tener exactamente 10 dígitos'
+      error: `El número debe tener 10 dígitos (encontrados: ${cleaned.length})`
     };
   }
   
-  // Verificar que no empiece con 0 o 1
+  // Verificar que no empiece con 0 o 1 (números inválidos en México)
   if (cleaned.startsWith('0') || cleaned.startsWith('1')) {
     return {
       isValid: false,
