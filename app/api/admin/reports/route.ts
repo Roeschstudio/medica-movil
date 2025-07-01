@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/db';
 
+// Forzar renderizado dinámico
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -94,7 +97,7 @@ async function generateAppointmentsReport() {
           email: true
         }
       },
-      doctor: {
+      doctorProfile: {
         select: {
           specialty: true,
           user: {
@@ -115,8 +118,8 @@ async function generateAppointmentsReport() {
     consultationType: appointment.type,
     patientName: appointment.patient.name,
     patientEmail: appointment.patient.email,
-    doctorName: appointment.doctor.user.name,
-    doctorSpecialty: appointment.doctor.specialty,
+    doctorName: appointment.doctorProfile.user.name,
+    doctorSpecialty: appointment.doctorProfile.specialty,
     notes: appointment.notes || '',
     createdAt: appointment.createdAt.toISOString()
   }));
@@ -138,7 +141,7 @@ async function generateFinancialReport() {
           name: true
         }
       },
-      doctor: {
+      doctorProfile: {
         select: {
           priceInPerson: true,
           priceVirtual: true,
@@ -157,19 +160,19 @@ async function generateFinancialReport() {
   const report = completedAppointments.map((appointment: any) => {
     let estimatedRevenue = 800; // Precio base por defecto
     
-    if (appointment.type === 'IN_PERSON' && appointment.doctor.priceInPerson) {
-      estimatedRevenue = appointment.doctor.priceInPerson;
-    } else if (appointment.type === 'VIRTUAL' && appointment.doctor.priceVirtual) {
-      estimatedRevenue = appointment.doctor.priceVirtual;
-    } else if (appointment.type === 'HOME_VISIT' && appointment.doctor.priceHomeVisit) {
-      estimatedRevenue = appointment.doctor.priceHomeVisit;
+    if (appointment.type === 'IN_PERSON' && appointment.doctorProfile.priceInPerson) {
+      estimatedRevenue = appointment.doctorProfile.priceInPerson;
+    } else if (appointment.type === 'VIRTUAL' && appointment.doctorProfile.priceVirtual) {
+      estimatedRevenue = appointment.doctorProfile.priceVirtual;
+    } else if (appointment.type === 'HOME_VISIT' && appointment.doctorProfile.priceHomeVisit) {
+      estimatedRevenue = appointment.doctorProfile.priceHomeVisit;
     }
 
     return {
       appointmentId: appointment.id,
       date: appointment.scheduledAt.toISOString(),
       patientName: appointment.patient.name,
-      doctorName: appointment.doctor.user.name,
+      doctorName: appointment.doctorProfile.user.name,
       consultationType: appointment.type,
       estimatedRevenue: estimatedRevenue,
       platformFee: Math.round(estimatedRevenue * 0.1), // 10% comisión

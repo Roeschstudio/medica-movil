@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/db';
 
+// Forzar renderizado dinámico
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -37,8 +40,10 @@ export async function GET(request: NextRequest) {
           } 
         },
         { 
-          doctor: { 
-            name: { contains: search, mode: 'insensitive' } 
+          doctorProfile: { 
+            user: {
+              name: { contains: search, mode: 'insensitive' }
+            }
           } 
         }
       ];
@@ -59,7 +64,7 @@ export async function GET(request: NextRequest) {
               email: true
             }
           },
-          doctor: {
+          doctorProfile: {
             select: {
               id: true,
               specialty: true,
@@ -91,9 +96,9 @@ export async function GET(request: NextRequest) {
           email: appointment.patient.email
         },
         doctor: {
-          id: appointment.doctor.id,
-          name: appointment.doctor.user.name,
-          specialty: appointment.doctor.specialty
+          id: appointment.doctorProfile.id,
+          name: appointment.doctorProfile.user.name,
+          specialty: appointment.doctorProfile.specialty
         }
       })),
       pagination: {
