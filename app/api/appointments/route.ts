@@ -1,251 +1,269 @@
-
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
-import { authConfig } from '@/lib/auth-config';
-import { ConsultationType } from '@prisma/client';
+import { authOptions } from '@/lib/auth-config';
+import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authConfig);
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const {
-      doctorId,
-      type,
-      scheduledAt,
-      notes
-    } = body;
+    const { searchParams } = new URL(request.url);
+    const doctorId = searchParams.get('doctorId');
+    const patientId = searchParams.get('patientId');
+    const status = searchParams.get('status');
+    const date = searchParams.get('date');
 
-    // Validaciones
-    if (!doctorId || !type || !scheduledAt) {
-      return NextResponse.json(
-        { error: 'Datos incompletos' },
-        { status: 400 }
-      );
+    let whereClause: any = {};
+
+    // Si es un doctor, solo mostrar sus citas
+    if (session.user.role === 'DOCTOR') {
+      whereClause.doctorId = session.user.id;
+    } 
+    // Si es un paciente, solo mostrar sus citas
+    else if (session.user.role === 'PATIENT') {
+      whereClause.patientId = session.user.id;
+    }
+    // Si es admin, puede ver todas las citas
+    else if (session.user.role === 'ADMIN') {
+      if (doctorId) whereClause.doctorId = doctorId;
+      if (patientId) whereClause.patientId = patientId;
     }
 
-    // Verificar que el doctor existe y está disponible
-    const doctor = await prisma.doctor.findUnique({
-      where: { id: doctorId },
-      include: {
-        user: true
-      }
-    });
-
-    if (!doctor || !doctor.isAvailable) {
-      return NextResponse.json(
-        { error: 'Doctor no disponible' },
-        { status: 404 }
-      );
+    if (status) {
+      whereClause.status = status;
     }
 
-    // Verificar que acepta el tipo de consulta
-    const acceptsType = 
-      (type === 'IN_PERSON' && doctor.acceptsInPerson) ||
-      (type === 'VIRTUAL' && doctor.acceptsVirtual) ||
-      (type === 'HOME_VISIT' && doctor.acceptsHomeVisits);
-
-    if (!acceptsType) {
-      return NextResponse.json(
-        { error: 'Tipo de consulta no disponible' },
-        { status: 400 }
-      );
+    if (date) {
+      const startDate = new Date(date);
+      const endDate = new Date(date);
+      endDate.setDate(endDate.getDate() + 1);
+      
+      whereClause.date = {
+        gte: startDate,
+        lt: endDate
+      };
     }
 
-    // Obtener datos del paciente
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Usuario no encontrado' },
-        { status: 404 }
-      );
-    }
-
-    // Determinar precio y duración
-    const price = 
-      type === 'IN_PERSON' ? doctor.priceInPerson :
-      type === 'VIRTUAL' ? doctor.priceVirtual :
-      doctor.priceHomeVisit;
-
-    const duration = 
-      type === 'IN_PERSON' ? doctor.durationInPerson :
-      type === 'VIRTUAL' ? doctor.durationVirtual :
-      doctor.durationHomeVisit;
-
-    if (!price || !duration) {
-      return NextResponse.json(
-        { error: 'Configuración de consulta incompleta' },
-        { status: 400 }
-      );
-    }
-
-    // Verificar conflictos de horario
-    const appointmentStart = new Date(scheduledAt);
-    const appointmentEnd = new Date(appointmentStart);
-    appointmentEnd.setMinutes(appointmentEnd.getMinutes() + duration);
-
-    const conflictingAppointment = await prisma.appointment.findFirst({
-      where: {
-        doctorId,
-        status: {
-          in: ['PENDING', 'CONFIRMED']
-        },
-        AND: [
-          {
-            scheduledAt: {
-              lt: appointmentEnd
-            }
-          },
-          {
-            scheduledAt: {
-              gte: new Date(appointmentStart.getTime() - duration * 60000)
-            }
-          }
-        ]
-      }
-    });
-
-    if (conflictingAppointment) {
-      return NextResponse.json(
-        { error: 'Horario no disponible' },
-        { status: 409 }
-      );
-    }
-
-    // Crear la cita
-    const appointment = await prisma.appointment.create({
-      data: {
-        patientId: session.user.id,
-        doctorId,
-        type: type as ConsultationType,
-        scheduledAt: appointmentStart,
-        duration,
-        price,
-        notes,
-        patientPhone: user.phone || '',
-        patientEmail: user.email,
-        status: 'PENDING'
-      },
+    const appointments = await prisma.appointment.findMany({
+      where: whereClause,
       include: {
         doctor: {
           include: {
-            user: true
+            user: {
+              select: {
+                name: true,
+                email: true,
+                image: true
+              }
+            }
           }
         },
-        patient: true
-      }
+        patient: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+            image: true
+          }
+        }
+      },
+      orderBy: [
+        { date: 'asc' },
+        { time: 'asc' }
+      ]
+    }).catch((error: any) => {
+      console.error('Database error:', error);
+      return [];
     });
 
-    return NextResponse.json({
+    // Formatear los datos para el frontend
+    const formattedAppointments = appointments.map((appointment: any) => ({
       id: appointment.id,
-      doctorName: appointment.doctor.user.name,
-      patientName: appointment.patient.name,
+      patientName: appointment.patient?.name || 'Paciente',
+      patientEmail: appointment.patient?.email || '',
+      patientPhone: appointment.patient?.phone || null,
+      doctorName: appointment.doctor?.user?.name || 'Doctor',
+      doctorEmail: appointment.doctor?.user?.email || '',
       type: appointment.type,
-      scheduledAt: appointment.scheduledAt,
-      duration: appointment.duration,
-      price: appointment.price,
+      date: appointment.date.toISOString().split('T')[0], // YYYY-MM-DD format
+      time: appointment.time,
       status: appointment.status,
-      notes: appointment.notes
-    }, { status: 201 });
+      notes: appointment.notes || null,
+      createdAt: appointment.createdAt,
+      updatedAt: appointment.updatedAt
+    }));
+
+    return NextResponse.json(formattedAppointments);
 
   } catch (error) {
-    console.error('Error creating appointment:', error);
+    console.error('Error fetching appointments:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error interno del servidor' }, 
       { status: 500 }
     );
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authConfig);
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const body = await request.json();
+    const { doctorId, date, time, type, notes } = body;
 
-    const skip = (page - 1) * limit;
-
-    const where: any = {
-      patientId: session.user.id
-    };
-
-    if (status && status !== 'all') {
-      where.status = status;
+    // Validar que el usuario sea un paciente o admin
+    if (session.user.role !== 'PATIENT' && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Solo los pacientes pueden agendar citas' }, { status: 403 });
     }
 
-    const [appointments, total] = await Promise.all([
-      prisma.appointment.findMany({
-        where,
-        include: {
-          doctor: {
-            include: {
-              user: true
+    // Verificar que el doctor existe
+    const doctor = await prisma.doctorProfile.findUnique({
+      where: { userId: doctorId }
+    }).catch(() => null);
+
+    if (!doctor) {
+      return NextResponse.json({ error: 'Doctor no encontrado' }, { status: 404 });
+    }
+
+    // Crear la cita
+    const appointment = await prisma.appointment.create({
+      data: {
+        doctorId,
+        patientId: session.user.id,
+        date: new Date(date),
+        time,
+        type: type || 'presencial',
+        status: 'pending',
+        notes: notes || null
+      },
+      include: {
+        doctor: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true
+              }
             }
           }
         },
-        orderBy: {
-          scheduledAt: 'desc'
-        },
-        skip,
-        take: limit
-      }),
-      prisma.appointment.count({ where })
-    ]);
-
-    const formattedAppointments = appointments.map(appointment => ({
-      id: appointment.id,
-      doctorId: appointment.doctorId,
-      doctorName: appointment.doctor.user.name,
-      doctorSpecialty: appointment.doctor.specialty,
-      doctorImage: appointment.doctor.profileImage,
-      type: appointment.type,
-      scheduledAt: appointment.scheduledAt,
-      duration: appointment.duration,
-      price: appointment.price,
-      status: appointment.status,
-      notes: appointment.notes,
-      patientNotes: appointment.patientNotes,
-      doctorNotes: appointment.doctorNotes,
-      createdAt: appointment.createdAt
-    }));
+        patient: {
+          select: {
+            name: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
+    }).catch((error: any) => {
+      console.error('Error creating appointment:', error);
+      throw new Error('Error al crear la cita');
+    });
 
     return NextResponse.json({
-      appointments: formattedAppointments,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
+      id: appointment.id,
+      message: 'Cita agendada exitosamente'
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('Error creating appointment:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' }, 
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { appointmentId, status, notes } = body;
+
+    if (!appointmentId || !status) {
+      return NextResponse.json({ error: 'ID de cita y estado son requeridos' }, { status: 400 });
+    }
+
+    // Verificar que la cita existe
+    const existingAppointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        doctor: true,
+        patient: true
       }
+    }).catch(() => null);
+
+    if (!existingAppointment) {
+      return NextResponse.json({ error: 'Cita no encontrada' }, { status: 404 });
+    }
+
+    // Verificar permisos
+    const canUpdate = 
+      session.user.role === 'ADMIN' ||
+      (session.user.role === 'DOCTOR' && existingAppointment.doctorId === session.user.id) ||
+      (session.user.role === 'PATIENT' && existingAppointment.patientId === session.user.id);
+
+    if (!canUpdate) {
+      return NextResponse.json({ error: 'No tienes permisos para actualizar esta cita' }, { status: 403 });
+    }
+
+    // Actualizar la cita
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status,
+        notes: notes || existingAppointment.notes,
+        updatedAt: new Date()
+      },
+      include: {
+        doctor: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        patient: {
+          select: {
+            name: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
+    }).catch((error: any) => {
+      console.error('Error updating appointment:', error);
+      throw new Error('Error al actualizar la cita');
+    });
+
+    return NextResponse.json({
+      id: updatedAppointment.id,
+      status: updatedAppointment.status,
+      message: 'Cita actualizada exitosamente'
     });
 
   } catch (error) {
-    console.error('Error fetching appointments:', error);
+    console.error('Error updating appointment:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error interno del servidor' }, 
       { status: 500 }
     );
   }
