@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
+import { authOptions } from '@/lib/unified-auth';
 import { prisma } from '@/lib/db';
+import { ErrorLogger } from '@/lib/error-handling-utils';
 
 export async function PATCH(
   request: NextRequest,
@@ -45,10 +46,16 @@ export async function PATCH(
     });
 
   } catch (error) {
-    console.error('Error updating doctor verification:', error);
+    ErrorLogger.log({
+      error: error as Error,
+      context: 'admin_doctor_verification',
+      action: 'update_doctor_verification_status',
+      level: 'error',
+      doctorId: params.id
+    });
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
-} 
+}

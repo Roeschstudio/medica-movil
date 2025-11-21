@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -27,6 +28,13 @@ model User {
   payments              Payment[]
   reviews               Review[]
   sessions              Session[]
+  chatRoomsAsPatient    ChatRoom[]     @relation("PatientChatRooms")
+  chatMessages          ChatMessage[]
+  uploadedFiles         MedicalFile[]
+  initiatedVideoSessions VideoSession[] @relation("VideoSessionInitiator")
+  videoSessionParticipations VideoSessionParticipant[] @relation("VideoSessionParticipants")
+  notificationPreferences NotificationPreferences?
+  adminActions AdminAction[] @relation("AdminActions")
 
   @@map("users")
 }
@@ -77,12 +85,23 @@ model Doctor {
   totalAppointments     Int                @default(0)
   isVerified            Boolean            @default(false)
   isAvailable           Boolean            @default(true)
+  // IMSS specific fields
+  cedulaProfesional     String?            @unique
+  numeroIMSS            String?
+  hospitalAdscripcion   String?
+  especialidadIMSS      String?
+  isIMSSVerified        Boolean            @default(false)
+  imssVerificationDate  DateTime?
+  isOnline              Boolean            @default(false)
+  lastSeen              DateTime?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   appointments          Appointment[]
   blockedDays           DoctorBlockedDay[]
   user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviews               Review[]
+  chatRoomsAsDoctor     ChatRoom[]         @relation("DoctorChatRooms")
+  paymentDistributions  PaymentDistribution[]
 
   @@map("doctors")
 }
@@ -122,6 +141,8 @@ model Appointment {
   patient            User              @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
   payment            Payment?          @relation(fields: [paymentId], references: [id])
   review             Review?
+  chatRoom           ChatRoom?
+  medicalFiles       MedicalFile[]
 
   @@map("appointments")
 }
@@ -144,23 +165,40 @@ model Review {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
+  id              String                @id @default(cuid())
   userId          String
-  appointmentId   String?       @unique
+  appointmentId   String?               @unique
   amount          Int
-  currency        String        @default("MXN")
+  currency        String                @default("MXN")
+
+  // Payment method and provider tracking
   method          PaymentMethod
-  status          PaymentStatus @default(PENDING)
-  stripePaymentId String?       @unique
-  stripeSessionId String?       @unique
+  provider        PaymentProvider       @default(STRIPE)
+  status          PaymentStatus         @default(PENDING)
+
+  // Provider-specific IDs
+  stripePaymentId String?               @unique
+  stripeSessionId String?               @unique
+  paypalPaymentId String?               @unique
+  paypalOrderId   String?               @unique
+  mercadopagoId   String?               @unique
+
+  // Enhanced metadata and tracking
+  paymentData     Json?                 // Provider-specific data
+  failureReason   String?
   refundAmount    Int?
   refundReason    String?
+
+  // Enhanced timestamps
+  paidAt          DateTime?
   refundedAt      DateTime?
-  metadata        Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  // Relations
   appointment     Appointment?
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  distributions   PaymentDistribution[]
 
   @@map("payments")
 }
@@ -171,12 +209,34 @@ model Notification {
   type      NotificationType
   title     String
   message   String
+  metadata  String?          // JSON string for additional data
   isRead    Boolean          @default(false)
   sentAt    DateTime?
   createdAt DateTime         @default(now())
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model NotificationPreferences {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  email                Boolean  @default(true)
+  sms                  Boolean  @default(true)
+  whatsapp             Boolean  @default(false)
+  browser              Boolean  @default(true)
+  appointmentReminders Boolean  @default(true)
+  chatMessages         Boolean  @default(true)
+  systemUpdates        Boolean  @default(true)
+  marketingEmails      Boolean  @default(false)
+  quietHoursEnabled    Boolean  @default(false)
+  quietHoursStart      String   @default("22:00")
+  quietHoursEnd        String   @default("08:00")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }
 
 model MexicanState {
@@ -253,6 +313,113 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+model ChatRoom {
+  id            String        @id @default(cuid())
+  appointmentId String        @unique
+  patientId     String
+  doctorId      String
+  isActive      Boolean       @default(true)
+  startedAt     DateTime      @default(now())
+  endedAt       DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient       User          @relation("PatientChatRooms", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor        Doctor        @relation("DoctorChatRooms", fields: [doctorId], references: [id], onDelete: Cascade)
+  messages      ChatMessage[]
+  videoSessions VideoSession[]
+
+  @@map("chat_rooms")
+}
+
+model ChatMessage {
+  id         String      @id @default(cuid())
+  chatRoomId String
+  senderId   String
+  content    String?
+  messageType MessageType @default(TEXT)
+  senderType MessageSenderType @default(USER)
+  fileUrl    String?
+  fileName   String?
+  fileSize   Int?
+  isRead     Boolean     @default(false)
+  sentAt     DateTime    @default(now())
+  chatRoom   ChatRoom    @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  sender     User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model VideoSession {
+  id           String            @id @default(cuid())
+  chatRoomId   String
+  sessionId    String            @unique
+  roomName     String
+  type         VideoSessionType  @default(CONSULTATION)
+  status       VideoSessionStatus @default(WAITING)
+  initiatorId  String
+  recordingUrl String?
+  duration     Int               @default(0)
+  startedAt    DateTime          @default(now())
+  endedAt      DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  chatRoom     ChatRoom          @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  initiator    User              @relation("VideoSessionInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  participants VideoSessionParticipant[]
+
+  @@map("video_sessions")
+}
+
+model VideoSessionParticipant {
+  id             String       @id @default(cuid())
+  videoSessionId String
+  userId         String
+  joinedAt       DateTime?
+  leftAt         DateTime?
+  isConnected    Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  videoSession   VideoSession @relation(fields: [videoSessionId], references: [id], onDelete: Cascade)
+  user           User         @relation("VideoSessionParticipants", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([videoSessionId, userId])
+  @@map("video_session_participants")
+}
+
+model PaymentDistribution {
+  id               String        @id @default(cuid())
+  paymentId        String
+  doctorId         String
+  doctorAmount     Int
+  adminAmount      Int
+  doctorPercentage Float
+  adminPercentage  Float
+  status           PaymentStatus @default(PENDING)
+  distributedAt    DateTime?
+  createdAt        DateTime      @default(now())
+  payment          Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  doctor           Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@map("payment_distributions")
+}
+
+model MedicalFile {
+  id            String      @id @default(cuid())
+  appointmentId String
+  uploadedBy    String
+  fileName      String
+  fileUrl       String
+  fileType      FileType
+  fileSize      Int
+  mimeType      String?
+  isVisible     Boolean     @default(true)
+  uploadedAt    DateTime    @default(now())
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  uploader      User        @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@map("medical_files")
+}
+
 enum UserRole {
   PATIENT
   DOCTOR
@@ -281,14 +448,185 @@ enum PaymentStatus {
   PARTIALLY_REFUNDED
 }
 
+enum PaymentProvider {
+  STRIPE
+  PAYPAL
+  MERCADOPAGO
+}
+
 enum PaymentMethod {
   CARD
   OXXO
   SPEI
+  PAYPAL
+  MERCADOPAGO_CARD
+  MERCADOPAGO_INSTALLMENTS
 }
 
 enum NotificationType {
   EMAIL
   SMS
   WHATSAPP
+  BROWSER
+}
+
+enum MessageType {
+  TEXT
+  FILE
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
+enum MessageSenderType {
+  USER
+  SYSTEM
+  ADMIN
+}
+
+enum FileType {
+  STUDY
+  PRESCRIPTION
+  DOCUMENT
+  IMAGE
+  PDF
+}
+
+enum VideoSessionType {
+  CONSULTATION
+  FOLLOW_UP
+  EMERGENCY
+}
+
+enum VideoSessionStatus {
+  WAITING
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+model ChatAnalytics {
+  id           String   @id @default(cuid())
+  eventType    String   // message_sent, message_received, file_uploaded, chat_opened, chat_closed, connection_error, performance_metric
+  chatRoomId   String?
+  userId       String?
+  sessionId    String
+  metadata     Json?
+  timestamp    DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@map("chat_analytics")
+}
+
+model SystemHealth {
+  id            String   @id @default(cuid())
+  overallStatus String   // healthy, degraded, unhealthy
+  services      Json     // Array of service health checks
+  timestamp     DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@map("system_health")
+}
+
+model PaymentErrorLog {
+  id           String   @id @default(cuid())
+  errorCode    String
+  errorMessage String
+  provider     String
+  category     String
+  severity     String
+  userMessage  String
+  adminMessage String
+  retryable    Boolean
+  context      Json?
+  timestamp    DateTime
+  resolved     Boolean  @default(false)
+  resolvedAt   DateTime?
+  resolvedBy   String?
+  createdAt    DateTime @default(now())
+
+  @@map("payment_error_logs")
+}
+
+model AdminNotification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  message   String
+  severity  String
+  data      Json?
+  read      Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("admin_notifications")
+}
+
+model PaymentMetrics {
+  id                 String   @id @default(cuid())
+  provider           String
+  date               String   // YYYY-MM-DD format
+  totalPayments      Int      @default(0)
+  successfulPayments Int      @default(0)
+  totalErrors        Int      @default(0)
+  errorsByCategory   Json?    // { "user": 5, "provider": 2, ... }
+  errorsBySeverity   Json?    // { "low": 3, "medium": 2, "high": 2 }
+  averageProcessingTime Float? // in milliseconds
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([provider, date], name: "provider_date")
+  @@map("payment_metrics")
+}
+
+model PaymentOperationLog {
+  id        String   @id @default(cuid())
+  level     String
+  provider  String
+  operation String
+  message   String
+  data      Json?
+  timestamp DateTime
+  duration  Int?     // in milliseconds
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@map("payment_operation_logs")
+}
+
+model AdminMonitoringNotification {
+  id        String   @id @default(cuid())
+  userId    String   // 'admin' for admin notifications
+  type      AdminNotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("admin_monitoring_notifications")
+}
+
+model AdminAction {
+  id         String   @id @default(cuid())
+  adminId    String
+  actionType String
+  targetId   String?
+  targetType String?
+  details    Json?
+  createdAt  DateTime @default(now())
+  admin      User     @relation("AdminActions", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@map("admin_actions")
+}
+
+enum AdminNotificationType {
+  CHAT
+  PAYMENT
+  VIDEO_CALL
+  SYSTEM
 }

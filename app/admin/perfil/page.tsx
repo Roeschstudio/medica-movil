@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -44,10 +44,12 @@ export default function AdminProfilePage() {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => {
+        setTimeout(() => resolve(undefined), 1000);
+      });
       toast.success('Perfil actualizado correctamente');
       setIsEditing(false);
-    } catch (error) {
+    } catch {
       toast.error('Error al guardar los cambios');
     } finally {
       setIsLoading(false);
@@ -57,7 +59,7 @@ export default function AdminProfilePage() {
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary" />
       </div>
     );
   }

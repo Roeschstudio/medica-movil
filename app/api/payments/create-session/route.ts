@@ -1,155 +1,145 @@
+import { authOptions } from "@/lib/unified-auth";
+import { PaymentService } from "@/lib/payments/PaymentService";
+import { StripeProvider } from "@/lib/payments/stripe/StripeProvider";
+import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authConfig } from '@/lib/auth-config';
-import { prisma } from '@/lib/db';
-import { stripe, getPaymentMethodConfig, createAppointmentMetadata, MexicanPaymentMethod } from '@/lib/stripe';
+// Initialize payment service with Stripe provider
+const paymentService = new PaymentService();
+paymentService.registerProvider(new StripeProvider());
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authConfig);
-    
+    // Authenticate user
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'No autorizado' },
+        { error: "Authentication required" },
         { status: 401 }
       );
     }
 
     const body = await request.json();
-    const {
-      appointmentId,
-      paymentMethod = 'card'
-    } = body;
+    const { appointmentId, returnUrl, cancelUrl } = body;
 
+    // Validate required fields
     if (!appointmentId) {
       return NextResponse.json(
-        { error: 'ID de cita requerido' },
+        { error: "Appointment ID is required" },
         { status: 400 }
       );
     }
 
-    // Verificar que la cita existe y pertenece al usuario
+    // Use default URLs if not provided
+    const successUrl =
+      returnUrl || `${process.env.NEXTAUTH_URL}/paciente/citas?payment=success`;
+    const cancelledUrl =
+      cancelUrl ||
+      `${process.env.NEXTAUTH_URL}/paciente/citas?payment=cancelled`;
+
+    // Get appointment details
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
+        patient: true,
         doctor: {
-          include: {
-            user: true
-          }
+          include: { user: true },
         },
-        patient: true
-      }
+      },
     });
 
     if (!appointment) {
       return NextResponse.json(
-        { error: 'Cita no encontrada' },
+        { error: "Appointment not found" },
         { status: 404 }
       );
     }
 
+    // Verify user owns the appointment
     if (appointment.patientId !== session.user.id) {
       return NextResponse.json(
-        { error: 'No autorizado para esta cita' },
+        { error: "Unauthorized access to appointment" },
         { status: 403 }
       );
     }
 
+    // Check if appointment already has a payment
     if (appointment.paymentId) {
-      return NextResponse.json(
-        { error: 'Esta cita ya tiene un pago asociado' },
-        { status: 400 }
-      );
+      const existingPayment = await prisma.payment.findUnique({
+        where: { id: appointment.paymentId },
+      });
+
+      if (existingPayment && existingPayment.status === "COMPLETED") {
+        return NextResponse.json(
+          { error: "Appointment is already paid" },
+          { status: 400 }
+        );
+      }
     }
 
-    // Configurar método de pago
-    const paymentConfig = getPaymentMethodConfig(paymentMethod as MexicanPaymentMethod);
-
-    // Crear sesión de Stripe
-    const stripeSession = await stripe.checkout.sessions.create({
-      ...paymentConfig,
-      mode: 'payment',
-      currency: 'mxn',
-      customer_email: appointment.patient.email,
-      line_items: [
-        {
-          price_data: {
-            currency: 'mxn',
-            product_data: {
-              name: `Consulta médica - ${appointment.doctor.user.name}`,
-              description: `${appointment.doctor.specialty} - ${new Date(appointment.scheduledAt).toLocaleDateString('es-MX', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}`,
-              images: appointment.doctor.profileImage ? [appointment.doctor.profileImage] : undefined,
-              metadata: {
-                doctor_name: appointment.doctor.user.name,
-                specialty: appointment.doctor.specialty,
-                consultation_type: appointment.type
-              }
-            },
-            unit_amount: appointment.price,
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: createAppointmentMetadata({
+    // Create payment request
+    const paymentRequest = {
+      appointmentId: appointment.id,
+      amount: appointment.price,
+      currency: "MXN",
+      description: `Consulta médica con Dr. ${appointment.doctor.user.name}`,
+      patientEmail: appointment.patient.email,
+      patientName: appointment.patient.name,
+      returnUrl: successUrl,
+      cancelUrl: cancelledUrl,
+      metadata: {
         appointmentId: appointment.id,
         doctorId: appointment.doctorId,
         patientId: appointment.patientId,
         consultationType: appointment.type,
-        scheduledAt: appointment.scheduledAt.toISOString()
-      }),
-      success_url: `${process.env.NEXTAUTH_URL}/paciente/citas?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/paciente/citas?payment=cancelled`,
-      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minutos
-      locale: 'es',
-      billing_address_collection: 'required',
-      phone_number_collection: {
-        enabled: true
-      }
-    });
+      },
+    };
 
-    // Crear registro de pago en la base de datos
+    // Create Stripe session
+    const result = await paymentService.createPayment("stripe", paymentRequest);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || "Failed to create Stripe session" },
+        { status: 400 }
+      );
+    }
+
+    // Create payment record in database
     const payment = await prisma.payment.create({
       data: {
         userId: session.user.id,
-        appointmentId,
+        appointmentId: appointment.id,
         amount: appointment.price,
-        currency: 'MXN',
-        method: paymentMethod === 'oxxo' ? 'OXXO' : paymentMethod === 'customer_balance' ? 'SPEI' : 'CARD',
-        status: 'PENDING',
-        stripeSessionId: stripeSession.id,
-        metadata: {
-          stripe_session_id: stripeSession.id,
-          payment_method_selected: paymentMethod
-        }
-      }
+        currency: "MXN",
+        method: "CARD",
+        provider: "STRIPE",
+        status: "PENDING",
+        stripeSessionId: result.paymentId,
+        paymentData: result.metadata,
+      },
     });
 
-    // Actualizar la cita con el ID del pago
+    // Update appointment with payment ID
     await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { paymentId: payment.id }
+      where: { id: appointment.id },
+      data: { paymentId: payment.id },
     });
 
     return NextResponse.json({
-      sessionId: stripeSession.id,
-      sessionUrl: stripeSession.url,
-      paymentId: payment.id
+      success: true,
+      paymentId: payment.id,
+      sessionId: result.paymentId,
+      sessionUrl: result.checkoutUrl,
+      metadata: result.metadata,
     });
-
   } catch (error) {
-    console.error('Error creating payment session:', error);
+    console.error("Stripe session creation error:", error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

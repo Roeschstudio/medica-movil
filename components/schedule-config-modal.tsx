@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -144,7 +144,9 @@ export function ScheduleConfigModal({ open, onOpenChange, doctorId }: ScheduleCo
         }
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => {
+        setTimeout(() => resolve(undefined), 1500);
+      });
       
       toast.success('Horarios guardados correctamente');
       onOpenChange(false);
@@ -289,7 +291,7 @@ export function ScheduleConfigModal({ open, onOpenChange, doctorId }: ScheduleCo
             <Button onClick={handleSave} disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                   Guardando...
                 </>
               ) : (

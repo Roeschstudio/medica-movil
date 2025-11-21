@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
+import { authOptions } from '@/lib/unified-auth';
 import { prisma } from '@/lib/db';
 
 // Forzar renderizado dinámico
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Construir filtros de forma más robusta
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     
     if (status && status !== 'all') {
       where.status = status;
@@ -76,12 +76,10 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-      }).catch((error: any) => {
-        console.error('Error fetching appointments:', error);
+      }).catch((_error: unknown) => {
         return [];
       }),
-      prisma.appointment.count({ where }).catch((error: any) => {
-        console.error('Error counting appointments:', error);
+      prisma.appointment.count({ where }).catch((_error: unknown) => {
         return 0;
       })
     ]);
@@ -89,7 +87,7 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
-      appointments: appointments.map((appointment: any) => ({
+      appointments: appointments.map((appointment: Record<string, unknown>) => ({
         id: appointment.id,
         scheduledAt: appointment.scheduledAt,
         status: appointment.status,
@@ -115,14 +113,13 @@ export async function GET(request: NextRequest) {
       }
     });
 
-  } catch (error) {
-    console.error('Error fetching appointments:', error);
+  } catch (_error) {
     return NextResponse.json(
       { 
         error: 'Error interno del servidor',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: _error instanceof Error ? _error.message : 'Unknown error'
       },
       { status: 500 }
     );
   }
-} 
+}

@@ -1,0 +1,102 @@
+# ANÁLISIS COMPLETO DE ERRORES ESLINT
+# Generado automáticamente para organizar reparaciones
+
+## RESUMEN EJECUTIVO
+- Total de archivos con errores: ~50+
+- Errores críticos (react/jsx-no-undef): 3
+- Errores de promesas: 1
+- Variables no utilizadas: 100+
+- Console statements: 50+
+- Tipos 'any' explícitos: 30+
+- Dependencias useEffect: 15+
+
+## LOTE 1 - ERRORES CRÍTICOS (PRIORIDAD MÁXIMA)
+### Archivo: ./components/admin-dashboard.tsx
+- Línea 348:14 - Error: 'Clock' is not defined (react/jsx-no-undef)
+- Línea 385:20 - Error: 'Input' is not defined (react/jsx-no-undef)
+- Línea 399:20 - Error: 'Input' is not defined (react/jsx-no-undef)
+
+### Archivo: ./components/schedule-config-modal.tsx
+- Línea 147:36 - Error: Return values from promise executor functions cannot be read (no-promise-executor-return)
+
+## LOTE 2 - VARIABLES NO UTILIZADAS (ALTA PRIORIDAD)
+### Archivo: ./components/schedule-config-modal.tsx
+- Línea 3:20 - 'useEffect' is defined but never used
+- Línea 12:10 - 'Separator' is defined but never used
+- Línea 13:20 - 'Clock' is defined but never used
+- Línea 13:41 - 'Copy' is defined but never used
+- Línea 13:53 - 'RotateCcw' is defined but never used
+- Línea 63:59 - 'doctorId' is defined but never used
+- Línea 151:14 - 'error' is defined but never used
+
+### Archivo: ./components/ui/task-card.tsx
+- Línea 3:10 - 'useState' is defined but never used
+
+### Archivo: ./components/ui/use-toast.ts
+- Línea 18:7 - 'actionTypes' is assigned a value but only used as a type
+
+### Archivo: ./components/optimized-chat-room.tsx
+- Línea 228:3 - 'appointmentId' is defined but never used
+- Línea 243:9 - 'userName' is assigned a value but never used
+- Línea 293:17 - 'chatRoomDetails' is assigned a value but never used
+- Línea 306:38 - 'scrollElementProps' is assigned a value but never used
+- Línea 306:58 - 'scrollToItem' is assigned a value but never used
+- Línea 545:36 - 'index' is defined but never used
+
+## LOTE 3 - CONSOLE STATEMENTS (MEDIA PRIORIDAD)
+### Archivos con múltiples console.log:
+- ./components/video-session-manager.tsx (15+ statements)
+- ./components/video-call-page.tsx (4 statements)
+- ./components/video-waiting-room.tsx (3 statements)
+- ./lib/admin-analytics.ts (5+ statements)
+- ./components/payment-method-selector.tsx (1 statement)
+- ./components/review-modal.tsx (1 statement)
+- ./components/video-call/VideoCallButton.tsx (2 statements)
+- ./components/video-call/VideoCallInterface.tsx (2 statements)
+
+## LOTE 4 - TIPOS 'ANY' EXPLÍCITOS (MEDIA PRIORIDAD)
+### Archivos principales:
+- ./components/admin-dashboard.tsx (1 tipo any)
+- ./components/notification-toast.tsx (3 tipos any)
+- ./components/payment-integration/AdminPaymentDashboard.tsx (3 tipos any)
+- ./components/video-call-page.tsx (1 tipo any)
+- ./components/video-session-manager.tsx (2 tipos any)
+- ./lib/admin-analytics.ts (3+ tipos any)
+
+## LOTE 5 - DEPENDENCIAS USEEFFECT (MEDIA PRIORIDAD)
+### Archivos con dependencias faltantes:
+- ./components/notification-toast.tsx - falta 'showNotificationToast'
+- ./components/payment-method-selector.tsx - falta 'paymentService'
+- ./components/video-call/VideoCallInterface.tsx - falta 'controlsTimeout'
+- ./components/video-call/VideoCallPage.tsx - falta 'navigateToChat' (2 instancias)
+
+## LOTE 6 - OTROS ERRORES
+### require-await:
+- ./components/payment-method-selector.tsx (línea 39:36)
+- ./components/video-session-manager.tsx (línea 142:64)
+
+### @next/next/no-img-element:
+- ./components/optimized-chat-room.tsx (línea 109:21)
+
+### Parámetros no utilizados:
+- ./components/ui/calendar.tsx (2 instancias)
+- ./components/video-waiting-room.tsx (1 instancia)
+
+## PLAN DE REPARACIÓN
+1. LOTE 1: Reparar errores críticos primero (componentes no definidos, promesas)
+2. LOTE 2: Eliminar variables e importaciones no utilizadas
+3. LOTE 3: Remover o comentar console statements
+4. LOTE 4: Reemplazar tipos 'any' con tipos específicos
+5. LOTE 5: Agregar dependencias faltantes a useEffect
+6. LOTE 6: Reparar errores menores restantes
+
+## ESTADO DE REPARACIÓN
+- [ ] LOTE 1 - Errores críticos
+- [ ] LOTE 2 - Variables no utilizadas
+- [ ] LOTE 3 - Console statements
+- [ ] LOTE 4 - Tipos 'any'
+- [ ] LOTE 5 - Dependencias useEffect
+- [ ] LOTE 6 - Otros errores
+
+Fecha de creación: $(Get-Date)
+Última actualización: Pendiente

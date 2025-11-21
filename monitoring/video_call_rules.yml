@@ -1,0 +1,228 @@
+# Prometheus alerting rules for Video Call System
+
+groups:
+  - name: video_call_alerts
+    rules:
+      # High Error Rate Alert
+      - alert: HighVideoCallErrorRate
+        expr: rate(video_call_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "High error rate in video call system"
+          description: "Video call error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # Connection Failure Alert
+      - alert: HighConnectionFailureRate
+        expr: rate(video_call_connection_failures_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: video-calls
+        annotations:
+          summary: "High connection failure rate"
+          description: "Video call connection failure rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # High Response Time Alert
+      - alert: HighVideoCallResponseTime
+        expr: histogram_quantile(0.95, rate(video_call_response_time_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "High response time for video calls"
+          description: "95th percentile response time is {{ $value }}s over the last 5 minutes"
+
+      # Application Down Alert
+      - alert: VideoCallApplicationDown
+        expr: up{job="video-call-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: video-calls
+        annotations:
+          summary: "Video call application is down"
+          description: "Video call application has been down for more than 1 minute"
+
+      # High Memory Usage Alert
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / 1024 / 1024) > 800
+        for: 5m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "High memory usage"
+          description: "Application memory usage is {{ $value }}MB"
+
+      # High CPU Usage Alert
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "High CPU usage"
+          description: "Application CPU usage is {{ $value | humanizePercentage }}"
+
+      # Database Connection Issues
+      - alert: DatabaseConnectionIssues
+        expr: rate(video_call_db_errors_total[5m]) > 0.02
+        for: 2m
+        labels:
+          severity: critical
+          service: video-calls
+        annotations:
+          summary: "Database connection issues"
+          description: "Database error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # WebRTC Connection Quality Issues
+      - alert: PoorWebRTCQuality
+        expr: avg(video_call_quality_score) < 0.7
+        for: 5m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "Poor WebRTC connection quality"
+          description: "Average WebRTC quality score is {{ $value }} over the last 5 minutes"
+
+      # High Packet Loss
+      - alert: HighPacketLoss
+        expr: avg(video_call_packet_loss_percentage) > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "High packet loss in video calls"
+          description: "Average packet loss is {{ $value }}% over the last 3 minutes"
+
+      # Low Bandwidth Alert
+      - alert: LowBandwidth
+        expr: avg(video_call_bandwidth_kbps) < 200
+        for: 5m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "Low bandwidth detected"
+          description: "Average bandwidth is {{ $value }}kbps over the last 5 minutes"
+
+      # Too Many Active Calls
+      - alert: TooManyActiveCalls
+        expr: video_call_active_calls_total > 100
+        for: 2m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "High number of active calls"
+          description: "There are {{ $value }} active calls currently"
+
+      # Disk Space Alert
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          service: video-calls
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value | humanizePercentage }} full"
+
+      # Redis Connection Issues
+      - alert: RedisConnectionIssues
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: video-calls
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute"
+
+      # High Redis Memory Usage
+      - alert: HighRedisMemoryUsage
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+  - name: video_call_performance
+    rules:
+      # Connection Time Monitoring
+      - alert: SlowConnectionEstablishment
+        expr: histogram_quantile(0.95, rate(video_call_connection_time_seconds_bucket[10m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "Slow connection establishment"
+          description: "95th percentile connection time is {{ $value }}s over the last 10 minutes"
+
+      # ICE Gathering Time
+      - alert: SlowICEGathering
+        expr: histogram_quantile(0.95, rate(video_call_ice_gathering_time_seconds_bucket[10m])) > 3
+        for: 5m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "Slow ICE gathering"
+          description: "95th percentile ICE gathering time is {{ $value }}s over the last 10 minutes"
+
+      # Signal Latency
+      - alert: HighSignalLatency
+        expr: histogram_quantile(0.95, rate(video_call_signal_latency_seconds_bucket[5m])) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "High signaling latency"
+          description: "95th percentile signal latency is {{ $value }}s over the last 5 minutes"
+
+  - name: video_call_business
+    rules:
+      # Call Success Rate
+      - alert: LowCallSuccessRate
+        expr: (rate(video_call_completed_total[10m]) / rate(video_call_started_total[10m])) < 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: video-calls
+        annotations:
+          summary: "Low call success rate"
+          description: "Call success rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+      # Average Call Duration Drop
+      - alert: ShortCallDuration
+        expr: avg(video_call_duration_seconds) < 60
+        for: 10m
+        labels:
+          severity: info
+          service: video-calls
+        annotations:
+          summary: "Short average call duration"
+          description: "Average call duration is {{ $value }}s over the last 10 minutes"
+
+      # No Calls Alert (during business hours)
+      - alert: NoCallsDetected
+        expr: rate(video_call_started_total[30m]) == 0 and hour() >= 8 and hour() <= 18
+        for: 30m
+        labels:
+          severity: info
+          service: video-calls
+        annotations:
+          summary: "No video calls detected during business hours"
+          description: "No video calls have been started in the last 30 minutes during business hours"

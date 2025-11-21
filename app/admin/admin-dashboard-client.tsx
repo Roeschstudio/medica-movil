@@ -1,40 +1,67 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { MainNav } from '@/components/main-nav';
-import { Footer } from '@/components/footer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { 
-  Users, 
-  Calendar, 
-  DollarSign, 
-  Stethoscope,
-  TrendingUp,
-  TrendingDown,
+import { NotificationBell } from "@/components/admin/notification-bell";
+import {
+  LazyChatMonitoring,
+  LazyVideoCallAnalytics,
+  LazyPaymentDashboard,
+} from "@/components/admin/lazy-monitoring-tabs";
+import { Footer } from "@/components/footer";
+import { MainNav } from "@/components/main-nav";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { formatMexicanCurrency } from "@/lib/mexican-utils";
+import {
   Activity,
-  FileText,
-  Star,
-  Clock,
   AlertCircle,
-  Search,
-  Filter,
+  BarChart3,
+  Calendar,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
+  DollarSign,
+  Eye,
+  FileText,
+  MessageCircle,
+  Search,
+  Star,
+  Stethoscope,
+  TrendingDown,
+  TrendingUp,
   UserCheck,
+  Users,
   UserX,
-  CheckCircle,
+  Video,
   XCircle,
-  Eye
-} from 'lucide-react';
-import { formatMexicanCurrency } from '@/lib/mexican-utils';
-import { useToast } from '@/hooks/use-toast';
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 interface DashboardStats {
   totalUsers: number;
@@ -83,6 +110,26 @@ interface Appointment {
   };
 }
 
+interface PaginationData {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+interface ReportData {
+  data: Record<string, any>[];
+}
+
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  trend?: 'up' | 'down';
+  trendValue?: string;
+}
+
 export default function AdminDashboardClient() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -90,50 +137,47 @@ export default function AdminDashboardClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(false);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
-  
+
   // Estado para controlar las tabs
-  const [activeTab, setActiveTab] = useState('overview');
-  
+  const [activeTab, setActiveTab] = useState("overview");
+
   // Filtros y paginación para usuarios
-  const [userSearch, setUserSearch] = useState('');
-  const [userRole, setUserRole] = useState('all');
+  const [userSearch, setUserSearch] = useState("");
+  const [userRole, setUserRole] = useState("all");
   const [userPage, setUserPage] = useState(1);
-  const [userPagination, setUserPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
-  
+  const [userPagination, setUserPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  });
+
   // Filtros y paginación para citas
-  const [appointmentSearch, setAppointmentSearch] = useState('');
-  const [appointmentStatus, setAppointmentStatus] = useState('all');
+  const [appointmentSearch, setAppointmentSearch] = useState("");
+  const [appointmentStatus, setAppointmentStatus] = useState("all");
   const [appointmentPage, setAppointmentPage] = useState(1);
-  const [appointmentPagination, setAppointmentPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
+  const [appointmentPagination, setAppointmentPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  });
 
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadDashboardStats();
-  }, []);
-
-  useEffect(() => {
-    loadUsers();
-  }, [userSearch, userRole, userPage]);
-
-  useEffect(() => {
-    loadAppointments();
-  }, [appointmentSearch, appointmentStatus, appointmentPage]);
-
-  const loadDashboardStats = async () => {
+  const loadDashboardStats = useCallback(async () => {
     setIsLoading(true);
-    
+
     try {
-      const response = await fetch('/api/admin/stats');
-      
+      const response = await fetch("/api/admin/stats");
+
       if (!response.ok) {
-        throw new Error('Error al cargar estadísticas');
+        throw new Error("Error al cargar estadísticas");
       }
-      
+
       const data = await response.json();
       setStats(data);
-    } catch (error) {
-      console.error('Error loading dashboard stats:', error);
+    } catch (_error) {
       toast({
         title: "Error",
         description: "No se pudieron cargar las estadísticas",
@@ -142,30 +186,29 @@ export default function AdminDashboardClient() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setUsersLoading(true);
-    
+
     try {
       const params = new URLSearchParams({
         page: userPage.toString(),
-        limit: '10',
-        ...(userRole !== 'all' && { role: userRole }),
-        ...(userSearch && { search: userSearch })
+        limit: "10",
+        ...(userRole !== "all" && { role: userRole }),
+        ...(userSearch && { search: userSearch }),
       });
 
       const response = await fetch(`/api/admin/users?${params}`);
-      
+
       if (!response.ok) {
-        throw new Error('Error al cargar usuarios');
+        throw new Error("Error al cargar usuarios");
       }
-      
+
       const data = await response.json();
       setUsers(data.users);
       setUserPagination(data.pagination);
-    } catch (error) {
-      console.error('Error loading users:', error);
+    } catch (_error) {
       toast({
         title: "Error",
         description: "No se pudieron cargar los usuarios",
@@ -174,30 +217,29 @@ export default function AdminDashboardClient() {
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, [userPage, userRole, userSearch, toast]);
 
-  const loadAppointments = async () => {
+  const loadAppointments = useCallback(async () => {
     setAppointmentsLoading(true);
-    
+
     try {
       const params = new URLSearchParams({
         page: appointmentPage.toString(),
-        limit: '10',
-        ...(appointmentStatus !== 'all' && { status: appointmentStatus }),
-        ...(appointmentSearch && { search: appointmentSearch })
+        limit: "10",
+        ...(appointmentStatus !== "all" && { status: appointmentStatus }),
+        ...(appointmentSearch && { search: appointmentSearch }),
       });
 
       const response = await fetch(`/api/admin/appointments?${params}`);
-      
+
       if (!response.ok) {
-        throw new Error('Error al cargar citas');
+        throw new Error("Error al cargar citas");
       }
-      
+
       const data = await response.json();
       setAppointments(data.appointments);
       setAppointmentPagination(data.pagination);
-    } catch (error) {
-      console.error('Error loading appointments:', error);
+    } catch (_error) {
       toast({
         title: "Error",
         description: "No se pudieron cargar las citas",
@@ -206,23 +248,28 @@ export default function AdminDashboardClient() {
     } finally {
       setAppointmentsLoading(false);
     }
-  };
+  }, [appointmentPage, appointmentStatus, appointmentSearch, toast]);
 
-  const StatCard = ({ 
-    title, 
-    value, 
-    description, 
-    icon: Icon, 
+  useEffect(() => {
+    loadDashboardStats();
+  }, [loadDashboardStats]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
+
+  const StatCard = ({
+    title,
+    value,
+    description,
+    icon: Icon,
     trend,
-    trendValue 
-  }: {
-    title: string;
-    value: string | number;
-    description: string;
-    icon: any;
-    trend?: 'up' | 'down';
-    trendValue?: string;
-  }) => (
+    trendValue,
+  }: StatCardProps) => (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -233,10 +280,12 @@ export default function AdminDashboardClient() {
         <div className="flex items-center space-x-2">
           <p className="text-xs text-muted-foreground">{description}</p>
           {trend && trendValue && (
-            <div className={`flex items-center space-x-1 ${
-              trend === 'up' ? 'text-success' : 'text-destructive'
-            }`}>
-              {trend === 'up' ? (
+            <div
+              className={`flex items-center space-x-1 ${
+                trend === "up" ? "text-success" : "text-destructive"
+              }`}
+            >
+              {trend === "up" ? (
                 <TrendingUp className="h-3 w-3" />
               ) : (
                 <TrendingDown className="h-3 w-3" />
@@ -249,29 +298,33 @@ export default function AdminDashboardClient() {
     </Card>
   );
 
-  const toggleDoctorVerification = async (userId: string, currentStatus: boolean) => {
+  const toggleDoctorVerification = async (
+    userId: string,
+    currentStatus: boolean
+  ) => {
     try {
       const response = await fetch(`/api/admin/doctors/${userId}/verify`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ isVerified: !currentStatus }),
       });
 
       if (!response.ok) {
-        throw new Error('Error al actualizar verificación');
+        throw new Error("Error al actualizar verificación");
       }
 
       toast({
         title: "Éxito",
-        description: `Doctor ${!currentStatus ? 'verificado' : 'desverificado'} correctamente`,
+        description: `Doctor ${
+          !currentStatus ? "verificado" : "desverificado"
+        } correctamente`,
       });
 
       // Recargar usuarios
       await loadUsers();
-    } catch (error) {
-      console.error('Error toggling doctor verification:', error);
+    } catch (_error) {
       toast({
         title: "Error",
         description: "No se pudo actualizar la verificación del doctor",
@@ -288,23 +341,26 @@ export default function AdminDashboardClient() {
       });
 
       const response = await fetch(`/api/admin/reports?type=${type}`);
-      
+
       if (!response.ok) {
-        throw new Error('Error al generar reporte');
+        throw new Error("Error al generar reporte");
       }
-      
+
       const data = await response.json();
-      
+
       // Convertir a CSV y descargar
       const csvContent = convertToCSV(data);
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-      
-      link.setAttribute('href', url);
-      link.setAttribute('download', `reporte_${type}_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      
+
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `reporte_${type}_${new Date().toISOString().split("T")[0]}.csv`
+      );
+      link.style.visibility = "hidden";
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -313,8 +369,7 @@ export default function AdminDashboardClient() {
         title: "Éxito",
         description: "Reporte generado y descargado correctamente",
       });
-    } catch (error) {
-      console.error('Error generating report:', error);
+    } catch (_error) {
       toast({
         title: "Error",
         description: "No se pudo generar el reporte",
@@ -323,26 +378,31 @@ export default function AdminDashboardClient() {
     }
   };
 
-  const convertToCSV = (reportData: any) => {
+  const convertToCSV = (reportData: ReportData) => {
     if (!reportData.data || reportData.data.length === 0) {
-      return 'No hay datos disponibles';
+      return "No hay datos disponibles";
     }
 
     const headers = Object.keys(reportData.data[0]);
-    const csvHeaders = headers.join(',');
-    
-    const csvRows = reportData.data.map((row: any) => {
-      return headers.map(header => {
-        const value = row[header];
-        // Escapar comillas y comas
-        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-          return `"${value.replace(/"/g, '""')}"`;
-        }
-        return value || '';
-      }).join(',');
+    const csvHeaders = headers.join(",");
+
+    const csvRows = reportData.data.map((row: Record<string, any>) => {
+      return headers
+        .map((header) => {
+          const value = row[header];
+          // Escapar comillas y comas
+          if (
+            typeof value === "string" &&
+            (value.includes(",") || value.includes('"'))
+          ) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value || "";
+        })
+        .join(",");
     });
 
-    return [csvHeaders, ...csvRows].join('\n');
+    return [csvHeaders, ...csvRows].join("\n");
   };
 
   const UserRow = ({ user }: { user: User }) => (
@@ -354,14 +414,20 @@ export default function AdminDashboardClient() {
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant={
-          user.role === 'ADMIN' ? 'destructive' : 
-          user.role === 'DOCTOR' ? 'default' : 
-          'secondary'
-        }>
-          {user.role === 'ADMIN' ? 'Admin' : 
-           user.role === 'DOCTOR' ? 'Doctor' : 
-           'Paciente'}
+        <Badge
+          variant={
+            user.role === "ADMIN"
+              ? "destructive"
+              : user.role === "DOCTOR"
+              ? "default"
+              : "secondary"
+          }
+        >
+          {user.role === "ADMIN"
+            ? "Admin"
+            : user.role === "DOCTOR"
+            ? "Doctor"
+            : "Paciente"}
         </Badge>
       </TableCell>
       <TableCell>
@@ -379,9 +445,14 @@ export default function AdminDashboardClient() {
       <TableCell>
         {user.doctor ? (
           <div className="flex items-center space-x-2">
-            <Badge variant="outline" className={
-              user.doctor.isVerified ? "text-success border-success" : "text-warning border-warning"
-            }>
+            <Badge
+              variant="outline"
+              className={
+                user.doctor.isVerified
+                  ? "text-success border-success"
+                  : "text-warning border-warning"
+              }
+            >
               {user.doctor.isVerified ? (
                 <>
                   <UserCheck className="h-3 w-3 mr-1" />
@@ -397,7 +468,9 @@ export default function AdminDashboardClient() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => toggleDoctorVerification(user.id, user.doctor!.isVerified)}
+              onClick={() =>
+                toggleDoctorVerification(user.id, user.doctor!.isVerified)
+              }
             >
               {user.doctor.isVerified ? (
                 <XCircle className="h-4 w-4 text-destructive" />
@@ -412,7 +485,7 @@ export default function AdminDashboardClient() {
       </TableCell>
       <TableCell>
         <div className="text-sm">
-          {new Date(user.createdAt).toLocaleDateString('es-MX')}
+          {new Date(user.createdAt).toLocaleDateString("es-MX")}
         </div>
       </TableCell>
       <TableCell>
@@ -428,45 +501,60 @@ export default function AdminDashboardClient() {
       <TableCell>
         <div>
           <div className="font-medium">{appointment.patient.name}</div>
-          <div className="text-sm text-muted-foreground">{appointment.patient.email}</div>
+          <div className="text-sm text-muted-foreground">
+            {appointment.patient.email}
+          </div>
         </div>
       </TableCell>
       <TableCell>
         <div>
           <div className="font-medium">{appointment.doctor.name}</div>
-          <div className="text-sm text-muted-foreground">{appointment.doctor.specialty}</div>
+          <div className="text-sm text-muted-foreground">
+            {appointment.doctor.specialty}
+          </div>
         </div>
       </TableCell>
       <TableCell>
         <div className="text-sm">
-          {new Date(appointment.scheduledAt).toLocaleDateString('es-MX', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+          {new Date(appointment.scheduledAt).toLocaleDateString("es-MX", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
           })}
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant={
-          appointment.status === 'COMPLETED' ? 'default' :
-          appointment.status === 'PENDING' ? 'secondary' :
-          appointment.status === 'CANCELLED' ? 'destructive' :
-          'outline'
-        }>
-          {appointment.status === 'COMPLETED' ? 'Completada' :
-           appointment.status === 'PENDING' ? 'Pendiente' :
-           appointment.status === 'CANCELLED' ? 'Cancelada' :
-           appointment.status}
+        <Badge
+          variant={
+            appointment.status === "COMPLETED"
+              ? "default"
+              : appointment.status === "PENDING"
+              ? "secondary"
+              : appointment.status === "CANCELLED"
+              ? "destructive"
+              : "outline"
+          }
+        >
+          {appointment.status === "COMPLETED"
+            ? "Completada"
+            : appointment.status === "PENDING"
+            ? "Pendiente"
+            : appointment.status === "CANCELLED"
+            ? "Cancelada"
+            : appointment.status}
         </Badge>
       </TableCell>
       <TableCell>
         <Badge variant="outline">
-          {appointment.consultationType === 'IN_PERSON' ? 'Presencial' :
-           appointment.consultationType === 'VIRTUAL' ? 'Virtual' :
-           appointment.consultationType === 'HOME_VISIT' ? 'Domicilio' :
-           appointment.consultationType}
+          {appointment.consultationType === "IN_PERSON"
+            ? "Presencial"
+            : appointment.consultationType === "VIRTUAL"
+            ? "Virtual"
+            : appointment.consultationType === "HOME_VISIT"
+            ? "Domicilio"
+            : appointment.consultationType}
         </Badge>
       </TableCell>
       <TableCell>
@@ -477,16 +565,18 @@ export default function AdminDashboardClient() {
     </TableRow>
   );
 
-  const Pagination = ({ 
-    pagination, 
-    onPageChange 
-  }: { 
-    pagination: any, 
-    onPageChange: (page: number) => void 
+  const Pagination = ({
+    pagination,
+    onPageChange,
+  }: {
+    pagination: PaginationData;
+    onPageChange: (page: number) => void;
   }) => (
     <div className="flex items-center justify-between">
       <div className="text-sm text-muted-foreground">
-        Mostrando {((pagination.page - 1) * pagination.limit) + 1} a {Math.min(pagination.page * pagination.limit, pagination.total)} de {pagination.total} resultados
+        Mostrando {(pagination.page - 1) * pagination.limit + 1} a{" "}
+        {Math.min(pagination.page * pagination.limit, pagination.total)} de{" "}
+        {pagination.total} resultados
       </div>
       <div className="flex items-center space-x-2">
         <Button
@@ -518,19 +608,21 @@ export default function AdminDashboardClient() {
     return (
       <div className="flex flex-col min-h-screen">
         <MainNav />
-        
+
         <div className="flex-1 bg-muted/30">
           <div className="max-width-container py-8">
             <div className="space-y-6">
               <div>
-                <h1 className="text-3xl font-bold text-foreground">Dashboard Administrativo</h1>
+                <h1 className="text-3xl font-bold text-foreground">
+                  Dashboard Administrativo
+                </h1>
                 <p className="text-muted-foreground">
                   Gestión y estadísticas de la plataforma Medica Movil
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[1, 2, 3, 4].map(i => (
+                {[1, 2, 3, 4].map((i) => (
                   <Card key={i} className="animate-pulse">
                     <CardContent className="p-6">
                       <Skeleton className="h-4 w-20 mb-2" />
@@ -553,7 +645,7 @@ export default function AdminDashboardClient() {
     return (
       <div className="flex flex-col min-h-screen">
         <MainNav />
-        
+
         <div className="flex-1 bg-muted/30">
           <div className="max-width-container py-8">
             <Card>
@@ -565,9 +657,7 @@ export default function AdminDashboardClient() {
                 <p className="text-muted-foreground mb-4">
                   No se pudieron cargar las estadísticas del dashboard
                 </p>
-                <Button onClick={loadDashboardStats}>
-                  Reintentar
-                </Button>
+                <Button onClick={loadDashboardStats}>Reintentar</Button>
               </CardContent>
             </Card>
           </div>
@@ -581,16 +671,21 @@ export default function AdminDashboardClient() {
   return (
     <div className="flex flex-col min-h-screen">
       <MainNav />
-      
+
       <div className="flex-1 bg-muted/30">
         <div className="max-width-container py-8">
           <div className="space-y-6">
             {/* Header */}
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Dashboard Administrativo</h1>
-              <p className="text-muted-foreground">
-                Gestión y estadísticas de la plataforma Medica Movil
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">
+                  Dashboard Administrativo
+                </h1>
+                <p className="text-muted-foreground">
+                  Gestión y estadísticas de la plataforma Medica Movil
+                </p>
+              </div>
+              <NotificationBell />
             </div>
 
             {/* Estadísticas principales */}
@@ -603,7 +698,7 @@ export default function AdminDashboardClient() {
                 trend="up"
                 trendValue="+12%"
               />
-              
+
               <StatCard
                 title="Citas Este Mes"
                 value={stats.totalAppointments.toLocaleString()}
@@ -633,8 +728,12 @@ export default function AdminDashboardClient() {
             </div>
 
             {/* Tabs de gestión */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="space-y-6"
+            >
+              <TabsList className="grid w-full grid-cols-7">
                 <TabsTrigger value="overview">
                   <Activity className="h-4 w-4 mr-2" />
                   Resumen
@@ -647,8 +746,20 @@ export default function AdminDashboardClient() {
                   <Calendar className="h-4 w-4 mr-2" />
                   Citas
                 </TabsTrigger>
+                <TabsTrigger value="chat">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Chat
+                </TabsTrigger>
+                <TabsTrigger value="video">
+                  <Video className="h-4 w-4 mr-2" />
+                  Video
+                </TabsTrigger>
+                <TabsTrigger value="payments">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Pagos
+                </TabsTrigger>
                 <TabsTrigger value="reports">
-                  <FileText className="h-4 w-4 mr-2" />
+                  <BarChart3 className="h-4 w-4 mr-2" />
                   Reportes
                 </TabsTrigger>
               </TabsList>
@@ -667,11 +778,15 @@ export default function AdminDashboardClient() {
                     <CardContent className="space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Citas completadas</span>
-                        <Badge variant="outline">{stats.completedAppointments}</Badge>
+                        <Badge variant="outline">
+                          {stats.completedAppointments}
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Ingresos totales</span>
-                        <Badge variant="outline">{formatMexicanCurrency(stats.totalRevenue)}</Badge>
+                        <Badge variant="outline">
+                          {formatMexicanCurrency(stats.totalRevenue)}
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Doctores activos</span>
@@ -693,50 +808,50 @@ export default function AdminDashboardClient() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <Button 
-                        className="w-full justify-start" 
+                      <Button
+                        className="w-full justify-start"
                         variant="outline"
                         onClick={() => {
-                          setActiveTab('users');
-                          setUserRole('all');
-                          setUserSearch('');
+                          setActiveTab("users");
+                          setUserRole("all");
+                          setUserSearch("");
                           setUserPage(1);
                         }}
                       >
                         <Users className="h-4 w-4 mr-2" />
                         Gestionar Usuarios
                       </Button>
-                      <Button 
-                        className="w-full justify-start" 
+                      <Button
+                        className="w-full justify-start"
                         variant="outline"
                         onClick={() => {
-                          setActiveTab('users');
-                          setUserRole('DOCTOR');
-                          setUserSearch('');
+                          setActiveTab("users");
+                          setUserRole("DOCTOR");
+                          setUserSearch("");
                           setUserPage(1);
                         }}
                       >
                         <Stethoscope className="h-4 w-4 mr-2" />
                         Verificar Doctores
                       </Button>
-                      <Button 
-                        className="w-full justify-start" 
+                      <Button
+                        className="w-full justify-start"
                         variant="outline"
                         onClick={() => {
-                          setActiveTab('appointments');
-                          setAppointmentStatus('PENDING');
-                          setAppointmentSearch('');
+                          setActiveTab("appointments");
+                          setAppointmentStatus("PENDING");
+                          setAppointmentSearch("");
                           setAppointmentPage(1);
                         }}
                       >
                         <Calendar className="h-4 w-4 mr-2" />
                         Ver Citas Pendientes
                       </Button>
-                      <Button 
-                        className="w-full justify-start" 
+                      <Button
+                        className="w-full justify-start"
                         variant="outline"
                         onClick={() => {
-                          setActiveTab('reports');
+                          setActiveTab("reports");
                         }}
                       >
                         <FileText className="h-4 w-4 mr-2" />
@@ -771,8 +886,8 @@ export default function AdminDashboardClient() {
                           className="pl-10"
                         />
                       </div>
-                      <Select 
-                        value={userRole} 
+                      <Select
+                        value={userRole}
                         onValueChange={(value) => {
                           setUserRole(value);
                           setUserPage(1);
@@ -793,7 +908,7 @@ export default function AdminDashboardClient() {
                     {/* Tabla de usuarios */}
                     {usersLoading ? (
                       <div className="space-y-4">
-                        {[1, 2, 3, 4, 5].map(i => (
+                        {[1, 2, 3, 4, 5].map((i) => (
                           <Skeleton key={i} className="h-16 w-full" />
                         ))}
                       </div>
@@ -818,7 +933,7 @@ export default function AdminDashboardClient() {
                         </Table>
 
                         {/* Paginación */}
-                        <Pagination 
+                        <Pagination
                           pagination={userPagination}
                           onPageChange={setUserPage}
                         />
@@ -852,8 +967,8 @@ export default function AdminDashboardClient() {
                           className="pl-10"
                         />
                       </div>
-                      <Select 
-                        value={appointmentStatus} 
+                      <Select
+                        value={appointmentStatus}
                         onValueChange={(value) => {
                           setAppointmentStatus(value);
                           setAppointmentPage(1);
@@ -875,7 +990,7 @@ export default function AdminDashboardClient() {
                     {/* Tabla de citas */}
                     {appointmentsLoading ? (
                       <div className="space-y-4">
-                        {[1, 2, 3, 4, 5].map(i => (
+                        {[1, 2, 3, 4, 5].map((i) => (
                           <Skeleton key={i} className="h-16 w-full" />
                         ))}
                       </div>
@@ -894,13 +1009,16 @@ export default function AdminDashboardClient() {
                           </TableHeader>
                           <TableBody>
                             {appointments.map((appointment) => (
-                              <AppointmentRow key={appointment.id} appointment={appointment} />
+                              <AppointmentRow
+                                key={appointment.id}
+                                appointment={appointment}
+                              />
                             ))}
                           </TableBody>
                         </Table>
 
                         {/* Paginación */}
-                        <Pagination 
+                        <Pagination
                           pagination={appointmentPagination}
                           onPageChange={setAppointmentPage}
                         />
@@ -921,48 +1039,71 @@ export default function AdminDashboardClient() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Button 
-                        className="h-24 flex-col space-y-2" 
+                      <Button
+                        className="h-24 flex-col space-y-2"
                         variant="outline"
-                        onClick={() => generateReport('users')}
+                        onClick={() => generateReport("users")}
                       >
                         <FileText className="h-6 w-6" />
                         <span>Reporte de Usuarios</span>
-                        <span className="text-xs text-muted-foreground">Exportar lista de usuarios</span>
+                        <span className="text-xs text-muted-foreground">
+                          Exportar lista de usuarios
+                        </span>
                       </Button>
-                      
-                      <Button 
-                        className="h-24 flex-col space-y-2" 
+
+                      <Button
+                        className="h-24 flex-col space-y-2"
                         variant="outline"
-                        onClick={() => generateReport('appointments')}
+                        onClick={() => generateReport("appointments")}
                       >
                         <Calendar className="h-6 w-6" />
                         <span>Reporte de Citas</span>
-                        <span className="text-xs text-muted-foreground">Exportar historial de citas</span>
+                        <span className="text-xs text-muted-foreground">
+                          Exportar historial de citas
+                        </span>
                       </Button>
-                      
-                      <Button 
-                        className="h-24 flex-col space-y-2" 
+
+                      <Button
+                        className="h-24 flex-col space-y-2"
                         variant="outline"
-                        onClick={() => generateReport('financial')}
+                        onClick={() => generateReport("financial")}
                       >
                         <DollarSign className="h-6 w-6" />
                         <span>Reporte Financiero</span>
-                        <span className="text-xs text-muted-foreground">Análisis de ingresos</span>
+                        <span className="text-xs text-muted-foreground">
+                          Análisis de ingresos
+                        </span>
                       </Button>
-                      
-                      <Button 
-                        className="h-24 flex-col space-y-2" 
+
+                      <Button
+                        className="h-24 flex-col space-y-2"
                         variant="outline"
-                        onClick={() => generateReport('activity')}
+                        onClick={() => generateReport("activity")}
                       >
                         <Activity className="h-6 w-6" />
                         <span>Reporte de Actividad</span>
-                        <span className="text-xs text-muted-foreground">Métricas de uso</span>
+                        <span className="text-xs text-muted-foreground">
+                          Métricas de uso
+                        </span>
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              {/* Tab: Chat Monitoring */}
+              <TabsContent value="chat" className="space-y-6">
+                <LazyChatMonitoring />
+              </TabsContent>
+
+              {/* Tab: Video Analytics */}
+              <TabsContent value="video" className="space-y-6">
+                <LazyVideoCallAnalytics />
+              </TabsContent>
+
+              {/* Tab: Payment Dashboard */}
+              <TabsContent value="payments" className="space-y-6">
+                <LazyPaymentDashboard />
               </TabsContent>
             </Tabs>
           </div>

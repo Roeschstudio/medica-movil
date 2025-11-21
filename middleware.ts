@@ -1,82 +1,102 @@
+import { prisma } from "@/lib/db";
+import { createSupabaseMiddlewareClient } from "@/lib/supabase";
+import { UserRole } from "@prisma/client";
+import { NextResponse, type NextRequest } from "next/server";
 
-import { withAuth } from 'next-auth/middleware';
-import { NextResponse } from 'next/server';
-import { UserRole } from '@prisma/client';
+export async function middleware(request: NextRequest) {
+  const { supabase, response } = createSupabaseMiddlewareClient(request);
+  const pathname = request.nextUrl.pathname;
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const pathname = req.nextUrl.pathname;
+  // Rutas públicas que no requieren autenticación
+  const publicRoutes = [
+    "/",
+    "/buscar",
+    "/doctores",
+    "/iniciar-sesion",
+    "/registrarse",
+    "/auth/error",
+    "/unauthorized",
+    "/api/auth",
+    "/servicios",
+    "/sobre-nosotros",
+    "/contacto",
+    "/beneficios-doctores",
+  ];
 
-    // Rutas públicas que no requieren autenticación
-    const publicRoutes = [
-      '/',
-      '/buscar',
-      '/doctores',
-      '/iniciar-sesion',
-      '/registrarse',
-      '/auth/error',
-      '/unauthorized'
-    ];
+  // Si es una ruta pública, permitir acceso
+  if (
+    publicRoutes.some(
+      (route) => pathname === route || pathname.startsWith(route)
+    )
+  ) {
+    return response;
+  }
 
-    // Si es una ruta pública, permitir acceso
-    if (publicRoutes.some(route => pathname === route || pathname.startsWith(route))) {
-      return NextResponse.next();
+  try {
+    // Verificar autenticación con Supabase (unified approach)
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    // Si no hay usuario autenticado, redirigir al login
+    if (error || !user) {
+      return NextResponse.redirect(new URL("/iniciar-sesion", request.url));
     }
 
-    // Si no hay token y la ruta no es pública, redirigir al login
-    if (!token) {
-      return NextResponse.redirect(new URL('/iniciar-sesion', req.url));
+    // Obtener información completa del usuario de nuestra base de datos
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email! },
+      select: {
+        id: true,
+        role: true,
+        isActive: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    if (!dbUser || !dbUser.isActive) {
+      return NextResponse.redirect(new URL("/iniciar-sesion", request.url));
     }
+
+    const role = dbUser.role as UserRole;
 
     // Rutas específicas por rol
-    const role = token.role as UserRole;
-
-    // Rutas de administrador
-    if (pathname.startsWith('/admin')) {
+    if (pathname.startsWith("/admin")) {
       if (role !== UserRole.ADMIN) {
-        return NextResponse.redirect(new URL('/unauthorized', req.url));
+        return NextResponse.redirect(new URL("/unauthorized", request.url));
       }
     }
 
-    // Rutas de doctor
-    if (pathname.startsWith('/doctor')) {
+    if (pathname.startsWith("/doctor")) {
       if (role !== UserRole.DOCTOR) {
-        return NextResponse.redirect(new URL('/unauthorized', req.url));
+        return NextResponse.redirect(new URL("/unauthorized", request.url));
       }
     }
 
-    // Rutas de paciente
-    if (pathname.startsWith('/paciente')) {
+    if (pathname.startsWith("/paciente")) {
       if (role !== UserRole.PATIENT) {
-        return NextResponse.redirect(new URL('/unauthorized', req.url));
+        return NextResponse.redirect(new URL("/unauthorized", request.url));
       }
     }
 
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        // Permitir acceso si hay token o si es una ruta pública
-        const pathname = req.nextUrl.pathname;
-        const publicRoutes = [
-          '/',
-          '/buscar',
-          '/doctores',
-          '/iniciar-sesion',
-          '/registrarse',
-          '/auth/error',
-          '/unauthorized'
-        ];
+    // Add user info to request headers for API routes
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-user-id", dbUser.id);
+    requestHeaders.set("x-user-role", role);
+    requestHeaders.set("x-user-email", dbUser.email);
 
-        return !!token || publicRoutes.some(route => 
-          pathname === route || pathname.startsWith(route)
-        );
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
       },
-    },
+    });
+  } catch (error) {
+    console.error("Error in unified middleware:", error);
+    return NextResponse.redirect(new URL("/iniciar-sesion", request.url));
   }
-);
+}
 
 export const config = {
   matcher: [
@@ -88,6 +108,6 @@ export const config = {
      * - favicon.ico (favicon)
      * - public (archivos públicos)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+    "/((?!api|_next/static|_next/image|favicon.ico|public).*)",
   ],
 };

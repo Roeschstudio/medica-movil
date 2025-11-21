@@ -1,0 +1,76 @@
+SISTEMA DE DIAGNÓSTICO Y REPARACIÓN - ANÁLISIS INICIAL
+=======================================================
+Fecha: $(Get-Date)
+Comando ejecutado: npm run build
+Estado: Failed to compile (Exit Code: 1)
+
+RESUMEN DE ERRORES Y ADVERTENCIAS (Primeras 100 líneas)
+========================================================
+
+TIPO 1: CONSOLE STATEMENTS (no-console)
+----------------------------------------
+1. ./app/api/admin/doctors/[id]/verify/route.ts:48:5 - Unexpected console statement
+2. ./app/api/admin/payment-dashboard/route.ts:149:5 - Unexpected console statement
+3. ./app/api/admin/payment-dashboard/route.ts:176:5 - Unexpected console statement
+4. ./app/api/admin/payment-dashboard/route.ts:199:5 - Unexpected console statement
+5. ./app/api/admin/payment-dashboard/route.ts:269:5 - Unexpected console statement
+
+TIPO 2: TIPOS 'ANY' EXPLÍCITOS (@typescript-eslint/no-explicit-any)
+-------------------------------------------------------------------
+1. ./app/admin/admin-dashboard-client.tsx:121:24 - Unexpected any. Specify a different type
+2. ./app/admin/admin-dashboard-client.tsx:389:62 - Unexpected any. Specify a different type
+3. ./app/api/admin/analytics/consolidated/route.ts:373:39 - Unexpected any. Specify a different type
+4. ./app/api/admin/payment-dashboard/route.ts:205:19 - Unexpected any. Specify a different type
+5. ./app/api/admin/payment-dashboard/route.ts:206:15 - Unexpected any. Specify a different type
+
+TIPO 3: VARIABLES NO UTILIZADAS (@typescript-eslint/no-unused-vars)
+-------------------------------------------------------------------
+1. ./app/api/admin/analytics/consolidated/route.ts:600:12 - 'error' is defined but never used
+2. ./app/api/admin/chat/sessions/route.ts:112:18 - 'error' is defined but never used
+3. ./app/api/admin/chat/sessions/route.ts:147:12 - 'error' is defined but never used
+4. ./app/api/admin/feature-flags/route.ts:151:21 - 'error' is defined but never used
+5. ./app/api/admin/feature-flags/route.ts:218:13 - 'result' is assigned a value but never used
+
+CLASIFICACIÓN POR IMPACTO
+=========================
+
+CRÍTICO (Build Failure):
+- Ningún error crítico detectado en las primeras líneas
+
+ALTO (Warnings que afectan calidad del código):
+- Console statements: 5 instancias
+- Tipos 'any' explícitos: 5 instancias
+- Variables no utilizadas: 5 instancias
+
+MEDIO (Warnings menores):
+- Pendiente de análisis completo
+
+BAJO (Optimizaciones):
+- Pendiente de análisis completo
+
+PLAN DE REPARACIÓN POR LOTES
+============================
+
+LOTE 1 (CRÍTICO): Console Statements
+- Prioridad: ALTA
+- Archivos afectados: 2
+- Errores: 5
+- Estrategia: Reemplazar con ErrorLogger.log
+
+LOTE 2 (CRÍTICO): Tipos 'any' explícitos
+- Prioridad: ALTA
+- Archivos afectados: 3
+- Errores: 5
+- Estrategia: Definir tipos específicos
+
+LOTE 3 (ALTO): Variables no utilizadas
+- Prioridad: MEDIA
+- Archivos afectados: 3
+- Errores: 5
+- Estrategia: Eliminar o usar variables
+
+NOTAS:
+- Este es un análisis parcial de las primeras líneas
+- Se requiere análisis completo para identificar todos los problemas
+- El sistema compila exitosamente pero con múltiples warnings
+- No se detectaron errores críticos que impidan la compilación

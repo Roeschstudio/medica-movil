@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
+import { authOptions } from '@/lib/unified-auth';
 import { prisma } from '@/lib/db';
+import { ErrorLogger } from '@/lib/error-handling-utils';
 
 // Forzar renderizado dinámico
 export const dynamic = 'force-dynamic';
@@ -37,7 +38,13 @@ export async function GET(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Error generating report:', error);
+    ErrorLogger.log({
+      error: error,
+      context: "Admin report generation",
+      action: "GET /api/admin/reports",
+      level: "error",
+      userId: session?.user?.id
+    });
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
@@ -63,7 +70,25 @@ async function generateUsersReport() {
     orderBy: { createdAt: 'desc' }
   });
 
-  const report = users.map((user: any) => ({
+  interface UserWithProfile {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    createdAt: Date;
+    doctorProfile?: {
+      specialty: string;
+      isVerified: boolean;
+      city: string;
+      state: string;
+      priceInPerson?: number;
+      priceVirtual?: number;
+      priceHomeVisit?: number;
+    };
+  }
+
+  const report = users.map((user: UserWithProfile) => ({
     id: user.id,
     name: user.name,
     email: user.email,
@@ -111,7 +136,26 @@ async function generateAppointmentsReport() {
     orderBy: { createdAt: 'desc' }
   });
 
-  const report = appointments.map((appointment: any) => ({
+  interface AppointmentWithRelations {
+    id: string;
+    scheduledAt: Date;
+    status: string;
+    type: string;
+    notes?: string;
+    createdAt: Date;
+    patient: {
+      name: string;
+      email: string;
+    };
+    doctor: {
+      specialty: string;
+      user: {
+        name: string;
+      };
+    };
+  }
+
+  const report = appointments.map((appointment: AppointmentWithRelations) => ({
     id: appointment.id,
     scheduledAt: appointment.scheduledAt.toISOString(),
     status: appointment.status,
@@ -157,7 +201,25 @@ async function generateFinancialReport() {
     orderBy: { scheduledAt: 'desc' }
   });
 
-  const report = completedAppointments.map((appointment: any) => {
+  interface CompletedAppointmentWithRelations {
+    id: string;
+    scheduledAt: Date;
+    type: string;
+    createdAt: Date;
+    patient: {
+      name: string;
+    };
+    doctor: {
+      priceInPerson?: number;
+      priceVirtual?: number;
+      priceHomeVisit?: number;
+      user: {
+        name: string;
+      };
+    };
+  }
+
+  const report = completedAppointments.map((appointment: CompletedAppointmentWithRelations) => {
     let estimatedRevenue = 800; // Precio base por defecto
     
     if (appointment.type === 'IN_PERSON' && appointment.doctor.priceInPerson) {
@@ -180,8 +242,13 @@ async function generateFinancialReport() {
     };
   });
 
-  const totalRevenue = report.reduce((sum: number, item: any) => sum + item.estimatedRevenue, 0);
-  const totalFees = report.reduce((sum: number, item: any) => sum + item.platformFee, 0);
+  interface ReportItem {
+    estimatedRevenue: number;
+    platformFee: number;
+  }
+
+  const totalRevenue = report.reduce((sum: number, item: ReportItem) => sum + item.estimatedRevenue, 0);
+  const totalFees = report.reduce((sum: number, item: ReportItem) => sum + item.platformFee, 0);
 
   return NextResponse.json({
     type: 'financial',
@@ -257,6 +324,13 @@ async function generateActivityReport() {
     })
   ]);
 
+  interface SpecialtyGroup {
+    specialty: string;
+    _count: {
+      specialty: number;
+    };
+  }
+
   return NextResponse.json({
     type: 'activity',
     data: {
@@ -271,11 +345,11 @@ async function generateActivityReport() {
         appointmentsLast30Days,
         appointmentsLast7Days
       },
-      topSpecialties: topSpecialties.map((item: any) => ({
+      topSpecialties: topSpecialties.map((item: SpecialtyGroup) => ({
         specialty: item.specialty,
         count: item._count.specialty
       }))
     },
     generatedAt: new Date().toISOString()
   });
-} 
+}

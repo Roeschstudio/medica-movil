@@ -1,128 +1,264 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
-import { prisma } from '@/lib/db';
+import { authOptions } from "@/lib/unified-auth";
+import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { ErrorLogger } from "@/lib/error-handling-utils";
 
-// Forzar renderizado dinámico
-export const dynamic = 'force-dynamic';
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Obtener estadísticas reales de la base de datos de forma más robusta
-    const [
-      totalUsers,
-      totalDoctors,
-      totalPatients,
-      totalAppointments,
-      pendingAppointments,
-      completedAppointments,
-      avgRating,
-      totalReviews
-    ] = await Promise.all([
-      // Total de usuarios
-      prisma.user.count().catch(() => 0),
-      
-      // Total de doctores
-      prisma.user.count({
-        where: { role: 'DOCTOR' }
-      }).catch(() => 0),
-      
-      // Total de pacientes
-      prisma.user.count({
-        where: { role: 'PATIENT' }
-      }).catch(() => 0),
-      
-      // Total de citas
-      prisma.appointment.count().catch(() => 0),
-      
-      // Citas pendientes
-      prisma.appointment.count({
-        where: { status: 'PENDING' }
-      }).catch(() => 0),
-      
-      // Citas completadas
-      prisma.appointment.count({
-        where: { status: 'COMPLETED' }
-      }).catch(() => 0),
-      
-      // Rating promedio
-      prisma.review.aggregate({
-        _avg: { rating: true }
-      }).catch(() => ({ _avg: { rating: null } })),
-      
-      // Total de reseñas
-      prisma.review.count().catch(() => 0)
-    ]);
+    // Get total users count
+    const totalUsers = await prisma.user.count();
 
-    // Calcular ingresos de forma más robusta
-    let totalRevenue = 0;
-    let monthlyRevenue = 0;
-    
-    try {
-      const completedAppointmentsWithPrice = await prisma.appointment.findMany({
-        where: { status: 'COMPLETED' },
-        include: {
-          doctor: {
-            select: {
-              priceInPerson: true,
-              priceVirtual: true,
-              priceHomeVisit: true
-            }
-          }
-        }
-      });
+    // Get active chat rooms count
+    const activeChats = await prisma.chatRoom.count({
+      where: {
+        isActive: true,
+        status: "active",
+      },
+    });
 
-      const currentMonth = new Date().getMonth();
-      const currentYear = new Date().getFullYear();
+    // Get active video sessions count
+    const activeCalls = await prisma.videoSession.count({
+      where: {
+        status: "active",
+      },
+    });
 
-      completedAppointmentsWithPrice.forEach((appointment: any) => {
-        // Usar precio promedio basado en tipo de consulta
-        const avgPrice = 800; // Precio promedio en pesos (800 MXN)
-        totalRevenue += avgPrice * 100; // Convertir a centavos
-        
-        const appointmentDate = new Date(appointment.scheduledAt);
-        if (appointmentDate.getMonth() === currentMonth && 
-            appointmentDate.getFullYear() === currentYear) {
-          monthlyRevenue += avgPrice * 100;
-        }
-      });
-    } catch (revenueError) {
-      console.error('Error calculating revenue:', revenueError);
-      // Continuar con valores por defecto
-    }
+    // Get total revenue from completed payments
+    const revenueResult = await prisma.payment.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: {
+        status: "completed",
+      },
+    });
+
+    const totalRevenue = revenueResult._sum.amount || 0;
+
+    // Get pending payments count
+    const pendingPayments = await prisma.paymentDistribution.count({
+      where: {
+        status: "pending",
+      },
+    });
+
+    // Get online doctors count (simplified - in real app would use Redis/session store)
+    const onlineDoctors = await prisma.doctor.count({
+      where: {
+        user: {
+          // This is a simplified approach - in production you'd track online status
+          updatedAt: {
+            gte: new Date(Date.now() - 15 * 60 * 1000), // Last 15 minutes
+          },
+        },
+      },
+    });
+
+    // Get online patients count (simplified)
+    const onlinePatients = await prisma.patient.count({
+      where: {
+        user: {
+          updatedAt: {
+            gte: new Date(Date.now() - 15 * 60 * 1000), // Last 15 minutes
+          },
+        },
+      },
+    });
+
+    // Additional stats for charts/trends
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayStats = {
+      newUsers: await prisma.user.count({
+        where: {
+          createdAt: {
+            gte: today,
+          },
+        },
+      }),
+
+      completedAppointments: await prisma.appointment.count({
+        where: {
+          status: "completed",
+          scheduledAt: {
+            gte: today,
+          },
+        },
+      }),
+
+      totalMessages: await prisma.chatMessage.count({
+        where: {
+          createdAt: {
+            gte: today,
+          },
+        },
+      }),
+
+      revenue: await prisma.payment.aggregate({
+        _sum: {
+          amount: true,
+        },
+        where: {
+          status: "completed",
+          createdAt: {
+            gte: today,
+          },
+        },
+      }),
+    };
+
+    // Weekly stats for trends
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const weeklyStats = {
+      newUsers: await prisma.user.count({
+        where: {
+          createdAt: {
+            gte: weekAgo,
+          },
+        },
+      }),
+
+      completedAppointments: await prisma.appointment.count({
+        where: {
+          status: "completed",
+          scheduledAt: {
+            gte: weekAgo,
+          },
+        },
+      }),
+
+      revenue: await prisma.payment.aggregate({
+        _sum: {
+          amount: true,
+        },
+        where: {
+          status: "completed",
+          createdAt: {
+            gte: weekAgo,
+          },
+        },
+      }),
+    };
+
+    // Top specialties by appointment count
+    const topSpecialties = await prisma.appointment.groupBy({
+      by: ["doctorId"],
+      _count: {
+        id: true,
+      },
+      orderBy: {
+        _count: {
+          id: "desc",
+        },
+      },
+      take: 5,
+    });
+
+    // Get specialty details
+    const specialtyDetails = await Promise.all(
+      topSpecialties.map(async (item) => {
+        const doctor = await prisma.doctor.findUnique({
+          where: { id: item.doctorId },
+          include: {
+            specialty: true,
+          },
+        });
+
+        return {
+          specialty: doctor?.specialty?.name || "Unknown",
+          appointmentCount: item._count.id,
+        };
+      })
+    );
 
     const stats = {
       totalUsers,
-      totalDoctors,
-      totalPatients,
-      totalAppointments,
-      pendingAppointments,
-      completedAppointments,
+      activeChats,
+      activeCalls,
       totalRevenue,
-      monthlyRevenue,
-      averageRating: avgRating?._avg?.rating || 0,
-      totalReviews
+      pendingPayments,
+      onlineDoctors,
+      onlinePatients,
+      today: {
+        ...todayStats,
+        revenue: todayStats.revenue._sum.amount || 0,
+      },
+      weekly: {
+        ...weeklyStats,
+        revenue: weeklyStats.revenue._sum.amount || 0,
+      },
+      topSpecialties: specialtyDetails,
     };
 
     return NextResponse.json(stats);
-
   } catch (error) {
-    console.error('Error fetching admin stats:', error);
+    ErrorLogger.log({
+      error,
+      context: "Admin stats retrieval",
+      action: "GET /api/admin/stats",
+      level: "error"
+    });
     return NextResponse.json(
-      { 
-        error: 'Error interno del servidor',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
-} 
+}
+
+// Real-time stats update endpoint
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { action } = await request.json();
+
+    // Handle real-time stat updates
+    switch (action) {
+      case "user_connected":
+        // In production, you'd update Redis or session store
+        // For now, we'll just return success
+        break;
+
+      case "user_disconnected":
+        // Handle user disconnection
+        break;
+
+      case "chat_started":
+        // Update chat statistics
+        break;
+
+      case "video_started":
+        // Update video call statistics
+        break;
+
+      default:
+        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    ErrorLogger.log({
+      error,
+      context: "Admin stats update",
+      action: "POST /api/admin/stats",
+      level: "error"
+    });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

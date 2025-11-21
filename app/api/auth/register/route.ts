@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { validateMexicanPhone } from '@/lib/mexican-utils';
+import { ErrorLogger } from '@/lib/error-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,7 +142,12 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error en registro:', error);
+    ErrorLogger.log({
+      error,
+      context: "Error en registro",
+      action: "POST /api/auth/register",
+      level: "error"
+    });
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

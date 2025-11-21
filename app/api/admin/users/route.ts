@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
+import { authOptions } from '@/lib/unified-auth';
 import { prisma } from '@/lib/db';
+import { ErrorLogger } from '@/lib/error-handling-utils';
 
 // Forzar renderizado dinámico
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,15 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Construir filtros de forma más robusta
-    const where: any = {};
+    interface UserWhereClause {
+      role?: string;
+      OR?: Array<{
+        name?: { contains: string; mode: 'insensitive' };
+        email?: { contains: string; mode: 'insensitive' };
+      }>;
+    }
+    
+    const where: UserWhereClause = {};
     
     if (role && role !== 'all') {
       where.role = role;
@@ -56,12 +65,22 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-      }).catch((error: any) => {
-        console.error('Error fetching users:', error);
+      }).catch((error: Error) => {
+        ErrorLogger.log({
+          error,
+          context: "Admin users fetch",
+          action: "GET /api/admin/users - fetch users",
+          level: "error"
+        });
         return [];
       }),
-      prisma.user.count({ where }).catch((error: any) => {
-        console.error('Error counting users:', error);
+      prisma.user.count({ where }).catch((error: Error) => {
+        ErrorLogger.log({
+          error,
+          context: "Admin users count",
+          action: "GET /api/admin/users - count users",
+          level: "error"
+        });
         return 0;
       })
     ]);
@@ -69,7 +88,7 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
-      users: users.map((user: any) => ({
+      users: users.map((user) => ({
         id: user.id,
         name: user.name || 'Sin nombre',
         email: user.email,
@@ -92,7 +111,12 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching users:', error);
+    ErrorLogger.log({
+      error,
+      context: "Admin users endpoint",
+      action: "GET /api/admin/users",
+      level: "error"
+    });
     return NextResponse.json(
       { 
         error: 'Error interno del servidor',
@@ -101,4 +125,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

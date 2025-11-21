@@ -1,9 +1,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authConfig } from '@/lib/auth-config';
+import { authOptions } from '@/lib/unified-auth';
 import { prisma } from '@/lib/db';
 import { stripe } from '@/lib/stripe';
+import { ErrorLogger } from '@/lib/error-handling-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authConfig);
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -124,7 +125,13 @@ export async function POST(
         });
 
       } catch (stripeError) {
-        console.error('Error processing refund:', stripeError);
+        ErrorLogger.log({
+          error: stripeError,
+          context: "Appointment cancellation refund",
+          action: "POST /api/appointments/[id]/cancel - stripe refund",
+          level: "error",
+          appointmentId: appointment.id
+        });
         // Continuar con la cancelación aunque falle el reembolso
       }
     }
@@ -154,7 +161,13 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error('Error cancelling appointment:', error);
+    ErrorLogger.log({
+      error,
+      context: "Appointment cancellation",
+      action: "POST /api/appointments/[id]/cancel",
+      level: "error",
+      appointmentId: params.id
+    });
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

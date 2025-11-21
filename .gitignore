@@ -39,3 +39,8 @@ next-env.d.ts
 # database
 /prisma/dev.db
 /prisma/dev.db-journal 
+
+# debug and analysis reports
+/reports/
+dependency-graph.svg
+dependency-graph.dot

@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { addDays, format, isSameDay, parseISO } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 

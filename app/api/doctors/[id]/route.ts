@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { ErrorLogger } from '@/lib/error-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,7 +98,12 @@ export async function GET(
     return NextResponse.json(formattedDoctor);
 
   } catch (error) {
-    console.error('Error fetching doctor:', error);
+    ErrorLogger.log({
+      error,
+      context: "Error fetching doctor",
+      action: "GET /api/doctors/[id]",
+      level: "error"
+    });
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

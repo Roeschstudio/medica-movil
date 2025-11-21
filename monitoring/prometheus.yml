@@ -1,0 +1,76 @@
+# Prometheus configuration for Video Call System monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "video_call_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  # Video Call Application
+  - job_name: "video-call-app"
+    static_configs:
+      - targets: ["app:3000"]
+    metrics_path: "/api/metrics"
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Node.js Application Metrics
+  - job_name: "nodejs-app"
+    static_configs:
+      - targets: ["app:3000"]
+    metrics_path: "/api/metrics/nodejs"
+    scrape_interval: 30s
+
+  # WebRTC Metrics
+  - job_name: "webrtc-metrics"
+    static_configs:
+      - targets: ["app:3000"]
+    metrics_path: "/api/metrics/webrtc"
+    scrape_interval: 15s
+
+  # System Metrics
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    scrape_interval: 30s
+
+  # Redis Metrics
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis:6379"]
+    metrics_path: "/metrics"
+    scrape_interval: 30s
+
+  # Nginx Metrics
+  - job_name: "nginx"
+    static_configs:
+      - targets: ["nginx:9113"]
+    scrape_interval: 30s
+
+  # Database Metrics (if using PostgreSQL exporter)
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+    scrape_interval: 30s
+
+  # Supabase Metrics (custom endpoint)
+  - job_name: "supabase-metrics"
+    static_configs:
+      - targets: ["app:3000"]
+    metrics_path: "/api/metrics/supabase"
+    scrape_interval: 60s
+
+  # Health Check Metrics
+  - job_name: "health-checks"
+    static_configs:
+      - targets: ["app:3000"]
+    metrics_path: "/api/health/metrics"
+    scrape_interval: 30s

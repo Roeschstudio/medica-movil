@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { ErrorLogger } from '@/lib/error-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,20 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Construir filtros
-    const where: any = {
+    const where: {
+      isAvailable: boolean;
+      user: { isActive: boolean };
+      OR?: Array<{
+        user?: { name?: { contains: string; mode: string } };
+        specialty?: { contains: string; mode: string };
+      }>;
+      specialty?: string;
+      state?: string;
+      city?: string;
+      acceptsInPerson?: boolean;
+      acceptsVirtual?: boolean;
+      acceptsHomeVisits?: boolean;
+    } = {
       isAvailable: true,
       user: {
         isActive: true
@@ -132,7 +146,12 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching doctors:', error);
+    ErrorLogger.log({
+      error,
+      context: "Error fetching doctors",
+      action: "GET /api/doctors",
+      level: "error"
+    });
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
